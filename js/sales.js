@@ -1,4 +1,4 @@
-// ZEDSON WATCHCRAFT - Sales Management Module
+// ZEDSON WATCHCRAFT - Sales Management Module (Updated with Discount Feature)
 
 /**
  * Sales Transaction Management System
@@ -40,10 +40,44 @@ function populateWatchDropdown(selectId) {
     if (window.InventoryModule && InventoryModule.watches) {
         const availableWatches = InventoryModule.getAvailableWatches();
         availableWatches.forEach(watch => {
-            select.innerHTML += `<option value="${watch.id}" data-price="${watch.price}">
+            select.innerHTML += `<option value="${watch.id}" data-price="${watch.price}" data-code="${watch.code}">
                 ${Utils.sanitizeHtml(watch.code)} - ${Utils.sanitizeHtml(watch.brand)} ${Utils.sanitizeHtml(watch.model)} (₹${watch.price})
             </option>`;
         });
+    }
+}
+
+/**
+ * Search watch by code and auto-populate
+ */
+function searchWatchByCode() {
+    const codeInput = document.getElementById('saleWatchCode');
+    const watchSelect = document.getElementById('saleWatch');
+    const priceInput = document.getElementById('salePrice');
+    
+    if (!codeInput || !watchSelect || !priceInput) return;
+    
+    const enteredCode = codeInput.value.trim().toUpperCase();
+    
+    if (!enteredCode) {
+        watchSelect.value = '';
+        priceInput.value = '';
+        return;
+    }
+    
+    // Find watch by code
+    const watchOption = Array.from(watchSelect.options).find(option => 
+        option.dataset.code && option.dataset.code.toUpperCase() === enteredCode
+    );
+    
+    if (watchOption) {
+        watchSelect.value = watchOption.value;
+        priceInput.value = watchOption.dataset.price;
+        calculateTotalAmount();
+    } else {
+        watchSelect.value = '';
+        priceInput.value = '';
+        Utils.showNotification('Watch with this code not found or not available');
     }
 }
 
@@ -53,15 +87,74 @@ function populateWatchDropdown(selectId) {
 function updateSalePrice() {
     const watchSelect = document.getElementById('saleWatch');
     const priceInput = document.getElementById('salePrice');
+    const codeInput = document.getElementById('saleWatchCode');
     
     if (watchSelect && priceInput) {
         const selectedOption = watchSelect.options[watchSelect.selectedIndex];
         if (selectedOption && selectedOption.dataset.price) {
             priceInput.value = selectedOption.dataset.price;
+            if (codeInput && selectedOption.dataset.code) {
+                codeInput.value = selectedOption.dataset.code;
+            }
         } else {
             priceInput.value = '';
+            if (codeInput) codeInput.value = '';
+        }
+        calculateTotalAmount();
+    }
+}
+
+/**
+ * Calculate discount amount
+ */
+function calculateDiscount() {
+    const discountType = document.getElementById('saleDiscountType').value;
+    const discountValue = parseFloat(document.getElementById('saleDiscountValue').value) || 0;
+    const price = parseFloat(document.getElementById('salePrice').value) || 0;
+    const quantity = parseInt(document.getElementById('saleQuantity').value) || 1;
+    
+    const subtotal = price * quantity;
+    let discountAmount = 0;
+    
+    if (discountType === 'percentage') {
+        if (discountValue > 100) {
+            Utils.showNotification('Discount percentage cannot exceed 100%');
+            document.getElementById('saleDiscountValue').value = 100;
+            discountAmount = subtotal;
+        } else {
+            discountAmount = (subtotal * discountValue) / 100;
+        }
+    } else if (discountType === 'amount') {
+        if (discountValue > subtotal) {
+            Utils.showNotification('Discount amount cannot exceed subtotal');
+            document.getElementById('saleDiscountValue').value = subtotal;
+            discountAmount = subtotal;
+        } else {
+            discountAmount = discountValue;
         }
     }
+    
+    return Math.min(discountAmount, subtotal);
+}
+
+/**
+ * Calculate total amount including discount
+ */
+function calculateTotalAmount() {
+    const price = parseFloat(document.getElementById('salePrice').value) || 0;
+    const quantity = parseInt(document.getElementById('saleQuantity').value) || 1;
+    const subtotal = price * quantity;
+    const discountAmount = calculateDiscount();
+    const totalAmount = subtotal - discountAmount;
+    
+    // Update display fields
+    const subtotalDisplay = document.getElementById('saleSubtotal');
+    const discountDisplay = document.getElementById('saleDiscountAmount');
+    const totalDisplay = document.getElementById('saleTotalAmount');
+    
+    if (subtotalDisplay) subtotalDisplay.textContent = Utils.formatCurrency(subtotal);
+    if (discountDisplay) discountDisplay.textContent = Utils.formatCurrency(discountAmount);
+    if (totalDisplay) totalDisplay.textContent = Utils.formatCurrency(totalAmount);
 }
 
 /**
@@ -79,8 +172,10 @@ function addNewSale(event) {
     const customerId = parseInt(document.getElementById('saleCustomer').value);
     const watchId = parseInt(document.getElementById('saleWatch').value);
     const price = parseFloat(document.getElementById('salePrice').value);
-    const paymentMethod = document.getElementById('salePaymentMethod').value;
     const quantity = parseInt(document.getElementById('saleQuantity').value) || 1;
+    const discountType = document.getElementById('saleDiscountType').value;
+    const discountValue = parseFloat(document.getElementById('saleDiscountValue').value) || 0;
+    const paymentMethod = document.getElementById('salePaymentMethod').value;
     
     // Validate input
     if (!customerId || !watchId || !price || !paymentMethod) {
@@ -117,7 +212,12 @@ function addNewSale(event) {
         return;
     }
 
-    // Create sale object with time
+    // Calculate amounts
+    const subtotal = price * quantity;
+    const discountAmount = calculateDiscount();
+    const totalAmount = subtotal - discountAmount;
+
+    // Create sale object with time and discount details
     const now = new Date();
     const newSale = {
         id: nextSaleId++,
@@ -131,7 +231,11 @@ function addNewSale(event) {
         watchCode: watch.code,
         price: price,
         quantity: quantity,
-        totalAmount: price * quantity,
+        subtotal: subtotal,
+        discountType: discountType,
+        discountValue: discountValue,
+        discountAmount: discountAmount,
+        totalAmount: totalAmount,
         paymentMethod: paymentMethod,
         status: 'completed',
         createdBy: AuthModule.getCurrentUser().username,
@@ -165,7 +269,7 @@ function addNewSale(event) {
     closeModal('newSaleModal');
     event.target.reset();
     
-    Utils.showNotification(`Sale recorded successfully! Sale ID: ${newSale.id}. Invoice automatically generated.`);
+    Utils.showNotification(`Sale recorded successfully! Sale ID: ${newSale.id}. Total: ${Utils.formatCurrency(totalAmount)}. Invoice automatically generated.`);
     console.log('Sale added:', newSale);
 }
 
@@ -184,7 +288,7 @@ function editSale(saleId) {
         return;
     }
 
-    // Create edit modal
+    // Create edit modal with discount fields
     const editModal = document.createElement('div');
     editModal.className = 'modal';
     editModal.id = 'editSaleModal';
@@ -209,11 +313,25 @@ function editSale(saleId) {
                 <div class="grid grid-2">
                     <div class="form-group">
                         <label>Quantity:</label>
-                        <input type="number" id="editSaleQuantity" value="${sale.quantity}" required min="1">
+                        <input type="number" id="editSaleQuantity" value="${sale.quantity}" required min="1" onchange="calculateEditTotalAmount()">
                     </div>
                     <div class="form-group">
                         <label>Price (₹):</label>
-                        <input type="number" id="editSalePrice" value="${sale.price}" required min="0" step="0.01">
+                        <input type="number" id="editSalePrice" value="${sale.price}" required min="0" step="0.01" onchange="calculateEditTotalAmount()">
+                    </div>
+                </div>
+                <div class="grid grid-2">
+                    <div class="form-group">
+                        <label>Discount Type:</label>
+                        <select id="editSaleDiscountType" onchange="calculateEditTotalAmount()">
+                            <option value="">No Discount</option>
+                            <option value="percentage" ${sale.discountType === 'percentage' ? 'selected' : ''}>Percentage (%)</option>
+                            <option value="amount" ${sale.discountType === 'amount' ? 'selected' : ''}>Amount (₹)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Discount Value:</label>
+                        <input type="number" id="editSaleDiscountValue" value="${sale.discountValue || 0}" min="0" step="0.01" onchange="calculateEditTotalAmount()">
                     </div>
                 </div>
                 <div class="form-group">
@@ -224,6 +342,20 @@ function editSale(saleId) {
                         <option value="UPI" ${sale.paymentMethod === 'UPI' ? 'selected' : ''}>UPI</option>
                         <option value="Bank Transfer" ${sale.paymentMethod === 'Bank Transfer' ? 'selected' : ''}>Bank Transfer</option>
                     </select>
+                </div>
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 15px 0;">
+                    <div style="display: flex; justify-content: space-between; margin: 5px 0;">
+                        <span>Subtotal:</span>
+                        <span id="editSaleSubtotal">${Utils.formatCurrency(sale.subtotal || sale.price * sale.quantity)}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin: 5px 0;">
+                        <span>Discount:</span>
+                        <span id="editSaleDiscountAmount">${Utils.formatCurrency(sale.discountAmount || 0)}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin: 5px 0; font-weight: bold; border-top: 1px solid #ddd; padding-top: 5px;">
+                        <span>Total Amount:</span>
+                        <span id="editSaleTotalAmount">${Utils.formatCurrency(sale.totalAmount)}</span>
+                    </div>
                 </div>
                 <button type="submit" class="btn">Update Sale</button>
                 <button type="button" class="btn btn-danger" onclick="closeEditSaleModal()">Cancel</button>
@@ -241,7 +373,38 @@ function editSale(saleId) {
     setTimeout(() => {
         document.getElementById('editSaleCustomer').value = sale.customerId;
         document.getElementById('editSaleWatch').value = sale.watchId;
+        calculateEditTotalAmount();
     }, 50);
+}
+
+/**
+ * Calculate total amount in edit modal
+ */
+function calculateEditTotalAmount() {
+    const price = parseFloat(document.getElementById('editSalePrice').value) || 0;
+    const quantity = parseInt(document.getElementById('editSaleQuantity').value) || 1;
+    const discountType = document.getElementById('editSaleDiscountType').value;
+    const discountValue = parseFloat(document.getElementById('editSaleDiscountValue').value) || 0;
+    
+    const subtotal = price * quantity;
+    let discountAmount = 0;
+    
+    if (discountType === 'percentage') {
+        discountAmount = Math.min((subtotal * discountValue) / 100, subtotal);
+    } else if (discountType === 'amount') {
+        discountAmount = Math.min(discountValue, subtotal);
+    }
+    
+    const totalAmount = subtotal - discountAmount;
+    
+    // Update display fields
+    const subtotalDisplay = document.getElementById('editSaleSubtotal');
+    const discountDisplay = document.getElementById('editSaleDiscountAmount');
+    const totalDisplay = document.getElementById('editSaleTotalAmount');
+    
+    if (subtotalDisplay) subtotalDisplay.textContent = Utils.formatCurrency(subtotal);
+    if (discountDisplay) discountDisplay.textContent = Utils.formatCurrency(discountAmount);
+    if (totalDisplay) totalDisplay.textContent = Utils.formatCurrency(totalAmount);
 }
 
 /**
@@ -283,6 +446,7 @@ function updateEditSalePrice() {
         const selectedOption = watchSelect.options[watchSelect.selectedIndex];
         if (selectedOption && selectedOption.dataset.price) {
             priceInput.value = selectedOption.dataset.price;
+            calculateEditTotalAmount();
         }
     }
 }
@@ -303,6 +467,8 @@ function updateSale(event, saleId) {
     const watchId = parseInt(document.getElementById('editSaleWatch').value);
     const price = parseFloat(document.getElementById('editSalePrice').value);
     const quantity = parseInt(document.getElementById('editSaleQuantity').value);
+    const discountType = document.getElementById('editSaleDiscountType').value;
+    const discountValue = parseFloat(document.getElementById('editSaleDiscountValue').value) || 0;
     const paymentMethod = document.getElementById('editSalePaymentMethod').value;
 
     // Validate input
@@ -326,6 +492,18 @@ function updateSale(event, saleId) {
         return;
     }
 
+    // Calculate amounts
+    const subtotal = price * quantity;
+    let discountAmount = 0;
+    
+    if (discountType === 'percentage') {
+        discountAmount = Math.min((subtotal * discountValue) / 100, subtotal);
+    } else if (discountType === 'amount') {
+        discountAmount = Math.min(discountValue, subtotal);
+    }
+    
+    const totalAmount = subtotal - discountAmount;
+
     // Restore previous inventory and customer counts
     InventoryModule.increaseWatchQuantity(sale.watchId, sale.quantity);
     CustomerModule.decrementCustomerPurchases(sale.customerId);
@@ -338,7 +516,11 @@ function updateSale(event, saleId) {
     sale.watchCode = watch.code;
     sale.price = price;
     sale.quantity = quantity;
-    sale.totalAmount = price * quantity;
+    sale.subtotal = subtotal;
+    sale.discountType = discountType;
+    sale.discountValue = discountValue;
+    sale.discountAmount = discountAmount;
+    sale.totalAmount = totalAmount;
     sale.paymentMethod = paymentMethod;
 
     // Apply new inventory and customer counts
@@ -427,6 +609,7 @@ function getSalesStats() {
     const totalSales = sales.reduce((sum, sale) => sum + sale.totalAmount, 0);
     const totalTransactions = sales.length;
     const averageSaleValue = totalTransactions > 0 ? totalSales / totalTransactions : 0;
+    const totalDiscounts = sales.reduce((sum, sale) => sum + (sale.discountAmount || 0), 0);
     
     // Sales by payment method
     const paymentMethods = {};
@@ -456,6 +639,7 @@ function getSalesStats() {
         totalSales,
         totalTransactions,
         averageSaleValue,
+        totalDiscounts,
         paymentMethods,
         brandSales,
         monthlySales
@@ -523,6 +707,12 @@ function renderSalesTable() {
         const hasInvoice = window.InvoiceModule && 
             InvoiceModule.getInvoicesForTransaction(sale.id, 'sale').length > 0;
         
+        // Display discount info if applicable
+        let discountInfo = '';
+        if (sale.discountAmount && sale.discountAmount > 0) {
+            discountInfo = `<br><small style="color: #dc3545;">Discount: ${Utils.formatCurrency(sale.discountAmount)}</small>`;
+        }
+        
         row.innerHTML = `
             <td class="serial-number">${index + 1}</td>
             <td>${Utils.sanitizeHtml(sale.date)}</td>
@@ -533,7 +723,10 @@ function renderSalesTable() {
                 <small>Code: ${Utils.sanitizeHtml(sale.watchCode)}</small><br>
                 <small>Qty: ${sale.quantity}</small>
             </td>
-            <td>${Utils.formatCurrency(sale.totalAmount)}</td>
+            <td>
+                ${Utils.formatCurrency(sale.totalAmount)}
+                ${discountInfo}
+            </td>
             <td><span class="status available">${Utils.sanitizeHtml(sale.paymentMethod)}</span></td>
             <td>
                 <button class="btn" onclick="editSale(${sale.id})" 
@@ -566,7 +759,7 @@ function initializeSales() {
     console.log('Sales module initialized');
 }
 
-// Load modal template for sales
+// Load modal template for sales with discount functionality
 function loadSalesModal() {
     const modalHtml = `
         <!-- New Sale Modal -->
@@ -581,20 +774,40 @@ function loadSalesModal() {
                             <option value="">Select Customer</option>
                         </select>
                     </div>
-                    <div class="form-group">
-                        <label>Watch:</label>
-                        <select id="saleWatch" required onchange="updateSalePrice()">
-                            <option value="">Select Watch</option>
-                        </select>
+                    <div class="grid grid-2">
+                        <div class="form-group">
+                            <label>Watch Code:</label>
+                            <input type="text" id="saleWatchCode" placeholder="Enter watch code" onchange="searchWatchByCode()" style="text-transform: uppercase;">
+                        </div>
+                        <div class="form-group">
+                            <label>Watch:</label>
+                            <select id="saleWatch" required onchange="updateSalePrice()">
+                                <option value="">Select Watch</option>
+                            </select>
+                        </div>
                     </div>
                     <div class="grid grid-2">
                         <div class="form-group">
                             <label>Quantity:</label>
-                            <input type="number" id="saleQuantity" value="1" required min="1">
+                            <input type="number" id="saleQuantity" value="1" required min="1" onchange="calculateTotalAmount()">
                         </div>
                         <div class="form-group">
                             <label>Price (₹):</label>
                             <input type="number" id="salePrice" required min="0" step="0.01" readonly style="background-color: #f0f0f0;">
+                        </div>
+                    </div>
+                    <div class="grid grid-2">
+                        <div class="form-group">
+                            <label>Discount Type:</label>
+                            <select id="saleDiscountType" onchange="calculateTotalAmount()">
+                                <option value="">No Discount</option>
+                                <option value="percentage">Percentage (%)</option>
+                                <option value="amount">Amount (₹)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Discount Value:</label>
+                            <input type="number" id="saleDiscountValue" value="0" min="0" step="0.01" onchange="calculateTotalAmount()">
                         </div>
                     </div>
                     <div class="form-group">
@@ -606,6 +819,20 @@ function loadSalesModal() {
                             <option value="UPI">UPI</option>
                             <option value="Bank Transfer">Bank Transfer</option>
                         </select>
+                    </div>
+                    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 15px 0;">
+                        <div style="display: flex; justify-content: space-between; margin: 5px 0;">
+                            <span>Subtotal:</span>
+                            <span id="saleSubtotal">₹0.00</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; margin: 5px 0;">
+                            <span>Discount:</span>
+                            <span id="saleDiscountAmount">₹0.00</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; margin: 5px 0; font-weight: bold; border-top: 1px solid #ddd; padding-top: 5px;">
+                            <span>Total Amount:</span>
+                            <span id="saleTotalAmount">₹0.00</span>
+                        </div>
                     </div>
                     <button type="submit" class="btn">Record Sale</button>
                 </form>
@@ -634,7 +861,10 @@ document.addEventListener('DOMContentLoaded', function() {
 window.SalesModule = {
     openNewSaleModal,
     populateWatchDropdown,
+    searchWatchByCode,
     updateSalePrice,
+    calculateDiscount,
+    calculateTotalAmount,
     addNewSale,
     editSale,
     updateSale,
@@ -654,10 +884,49 @@ window.SalesModule = {
 };
 
 // Make functions globally available
+window.searchWatchByCode = function() {
+    if (window.SalesModule) {
+        SalesModule.searchWatchByCode();
+    }
+};
+
 window.updateSalePrice = function() {
     if (window.SalesModule) {
         SalesModule.updateSalePrice();
     }
+};
+
+window.calculateTotalAmount = function() {
+    if (window.SalesModule) {
+        SalesModule.calculateTotalAmount();
+    }
+};
+
+window.calculateEditTotalAmount = function() {
+    const price = parseFloat(document.getElementById('editSalePrice').value) || 0;
+    const quantity = parseInt(document.getElementById('editSaleQuantity').value) || 1;
+    const discountType = document.getElementById('editSaleDiscountType').value;
+    const discountValue = parseFloat(document.getElementById('editSaleDiscountValue').value) || 0;
+    
+    const subtotal = price * quantity;
+    let discountAmount = 0;
+    
+    if (discountType === 'percentage') {
+        discountAmount = Math.min((subtotal * discountValue) / 100, subtotal);
+    } else if (discountType === 'amount') {
+        discountAmount = Math.min(discountValue, subtotal);
+    }
+    
+    const totalAmount = subtotal - discountAmount;
+    
+    // Update display fields
+    const subtotalDisplay = document.getElementById('editSaleSubtotal');
+    const discountDisplay = document.getElementById('editSaleDiscountAmount');
+    const totalDisplay = document.getElementById('editSaleTotalAmount');
+    
+    if (subtotalDisplay) subtotalDisplay.textContent = Utils.formatCurrency(subtotal);
+    if (discountDisplay) discountDisplay.textContent = Utils.formatCurrency(discountAmount);
+    if (totalDisplay) totalDisplay.textContent = Utils.formatCurrency(totalAmount);
 };
 
 window.updateEditSalePrice = function() {
@@ -668,6 +937,7 @@ window.updateEditSalePrice = function() {
         const selectedOption = watchSelect.options[watchSelect.selectedIndex];
         if (selectedOption && selectedOption.dataset.price) {
             priceInput.value = selectedOption.dataset.price;
+            calculateEditTotalAmount();
         }
     }
 };

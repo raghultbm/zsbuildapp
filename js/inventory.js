@@ -1,16 +1,17 @@
-// ZEDSON WATCHCRAFT - Inventory Management Module
+// ZEDSON WATCHCRAFT - Inventory Management Module (Updated with Size Field)
 
 /**
  * Inventory and Watch Management System
  */
 
-// Watch inventory data - Updated with CODE field
+// Watch inventory data - Updated with SIZE field
 let watches = [
     { 
         id: 1, 
         code: "ROL001", 
         brand: "Rolex", 
         model: "Submariner", 
+        size: "40mm",
         price: 850000, 
         quantity: 2, 
         description: "Luxury diving watch", 
@@ -21,6 +22,7 @@ let watches = [
         code: "OMG001", 
         brand: "Omega", 
         model: "Speedmaster", 
+        size: "42mm",
         price: 450000, 
         quantity: 1, 
         description: "Professional chronograph", 
@@ -31,6 +33,7 @@ let watches = [
         code: "CAS001", 
         brand: "Casio", 
         model: "G-Shock", 
+        size: "44mm",
         price: 15000, 
         quantity: 5, 
         description: "Sports watch", 
@@ -94,12 +97,13 @@ function addNewWatch(event) {
     const code = document.getElementById('watchCode').value.trim();
     const brand = document.getElementById('watchBrand').value.trim();
     const model = document.getElementById('watchModel').value.trim();
+    const size = document.getElementById('watchSize').value.trim();
     const price = parseFloat(document.getElementById('watchPrice').value);
     const quantity = parseInt(document.getElementById('watchQuantity').value);
     const description = document.getElementById('watchDescription').value.trim();
     
     // Validate input
-    if (!code || !brand || !model || !price || !quantity) {
+    if (!code || !brand || !model || !size || !price || !quantity) {
         Utils.showNotification('Please fill in all required fields');
         return;
     }
@@ -126,6 +130,7 @@ function addNewWatch(event) {
         code: code,
         brand: brand,
         model: model,
+        size: size,
         price: price,
         quantity: quantity,
         description: description,
@@ -248,7 +253,7 @@ function searchWatches(query) {
 }
 
 /**
- * Render watch table with S.No column
+ * Render watch table with S.No and Size columns
  */
 function renderWatchTable() {
     const tbody = document.getElementById('watchTableBody');
@@ -262,12 +267,13 @@ function renderWatchTable() {
     
     watches.forEach((watch, index) => {
         const row = document.createElement('tr');
-        // Creating 8 columns to match the header: S.No, Code, Brand, Model, Price, Quantity, Status, Actions
+        // Creating 9 columns to match the header: S.No, Code, Brand, Model, Size, Price, Quantity, Status, Actions
         row.innerHTML = `
             <td class="serial-number">${index + 1}</td>
             <td><strong>${Utils.sanitizeHtml(watch.code)}</strong></td>
             <td>${Utils.sanitizeHtml(watch.brand)}</td>
             <td>${Utils.sanitizeHtml(watch.model)}</td>
+            <td>${Utils.sanitizeHtml(watch.size)}</td>
             <td>${Utils.formatCurrency(watch.price)}</td>
             <td>${watch.quantity}</td>
             <td><span class="status ${watch.status}">${watch.status}</span></td>
@@ -285,12 +291,8 @@ function renderWatchTable() {
         tbody.appendChild(row);
     });
     
-    console.log('Watch table rendered successfully with S.No column');
+    console.log('Watch table rendered successfully with Size column');
 }
-
-/**
- * Get low stock alerts
- */
 
 /**
  * Get inventory statistics
@@ -326,7 +328,7 @@ function editWatch(watchId) {
         return;
     }
 
-    // Create edit modal
+    // Create edit modal with Size field
     const editModal = document.createElement('div');
     editModal.className = 'modal';
     editModal.id = 'editWatchModal';
@@ -346,9 +348,15 @@ function editWatch(watchId) {
                         <input type="text" id="editWatchCode" value="${watch.code}" required>
                     </div>
                 </div>
-                <div class="form-group">
-                    <label>Model:</label>
-                    <input type="text" id="editWatchModel" value="${watch.model}" required>
+                <div class="grid grid-2">
+                    <div class="form-group">
+                        <label>Model:</label>
+                        <input type="text" id="editWatchModel" value="${watch.model}" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Size:</label>
+                        <input type="text" id="editWatchSize" value="${watch.size}" required placeholder="e.g., 40mm, 42mm">
+                    </div>
                 </div>
                 <div class="grid grid-2">
                     <div class="form-group">
@@ -388,12 +396,13 @@ function updateWatch(event, watchId) {
     const code = document.getElementById('editWatchCode').value.trim();
     const brand = document.getElementById('editWatchBrand').value.trim();
     const model = document.getElementById('editWatchModel').value.trim();
+    const size = document.getElementById('editWatchSize').value.trim();
     const price = parseFloat(document.getElementById('editWatchPrice').value);
     const quantity = parseInt(document.getElementById('editWatchQuantity').value);
     const description = document.getElementById('editWatchDescription').value.trim();
 
     // Validate input
-    if (!code || !brand || !model || !price || quantity < 0) {
+    if (!code || !brand || !model || !size || !price || quantity < 0) {
         Utils.showNotification('Please fill in all required fields');
         return;
     }
@@ -408,6 +417,7 @@ function updateWatch(event, watchId) {
     watch.code = code;
     watch.brand = brand;
     watch.model = model;
+    watch.size = size;
     watch.price = price;
     watch.quantity = quantity;
     watch.description = description;
@@ -419,6 +429,10 @@ function updateWatch(event, watchId) {
     document.getElementById('editWatchModal').remove();
     Utils.showNotification('Watch updated successfully!');
 }
+
+/**
+ * Get low stock alerts
+ */
 function getLowStockAlerts() {
     return watches.filter(w => w.quantity <= 2 && w.quantity > 0);
 }
@@ -430,6 +444,72 @@ function initializeInventory() {
     renderWatchTable();
     console.log('Inventory module initialized');
 }
+
+// Load modal template for inventory with Size field
+function loadInventoryModal() {
+    const modalHtml = `
+        <!-- Add Watch Modal -->
+        <div id="addWatchModal" class="modal">
+            <div class="modal-content">
+                <span class="close" onclick="closeModal('addWatchModal')">&times;</span>
+                <h2>Add New Watch</h2>
+                <form onsubmit="InventoryModule.addNewWatch(event)">
+                    <div class="grid grid-2">
+                        <div class="form-group">
+                            <label>Brand:</label>
+                            <input type="text" id="watchBrand" required onchange="InventoryModule.updateWatchCode()">
+                        </div>
+                        <div class="form-group">
+                            <label>Code:</label>
+                            <input type="text" id="watchCode" required placeholder="Auto-generated">
+                        </div>
+                    </div>
+                    <div class="grid grid-2">
+                        <div class="form-group">
+                            <label>Model:</label>
+                            <input type="text" id="watchModel" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Size:</label>
+                            <input type="text" id="watchSize" required placeholder="e.g., 40mm, 42mm">
+                        </div>
+                    </div>
+                    <div class="grid grid-2">
+                        <div class="form-group">
+                            <label>Price (₹):</label>
+                            <input type="number" id="watchPrice" required min="0" step="0.01">
+                        </div>
+                        <div class="form-group">
+                            <label>Quantity:</label>
+                            <input type="number" id="watchQuantity" value="1" required min="1">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Description:</label>
+                        <textarea id="watchDescription" rows="3"></textarea>
+                    </div>
+                    <button type="submit" class="btn">Add Watch</button>
+                </form>
+            </div>
+        </div>
+    `;
+    
+    // Add to modals container if it exists
+    const modalsContainer = document.getElementById('modals-container');
+    if (modalsContainer) {
+        modalsContainer.innerHTML += modalHtml;
+    }
+}
+
+// Auto-load modal when module loads
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(() => {
+        loadInventoryModal();
+        if (window.InventoryModule) {
+            InventoryModule.initializeInventory();
+        }
+    }, 100);
+});
 
 // Export functions for global use
 window.InventoryModule = {

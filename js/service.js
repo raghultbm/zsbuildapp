@@ -1,4 +1,4 @@
-// ZEDSON WATCHCRAFT - Service Management Module
+// ZEDSON WATCHCRAFT - Service Management Module (Updated Integration)
 
 /**
  * Service Request Management System
@@ -106,12 +106,12 @@ function addNewService(event) {
     // Update customer service count
     CustomerModule.incrementCustomerServices(customerId);
     
-    // Generate Service Acknowledgement Invoice automatically
+    // Generate Service Acknowledgement automatically (separate tracking)
     if (window.InvoiceModule) {
-        const acknowledgementInvoice = InvoiceModule.generateServiceAcknowledgement(newService);
-        if (acknowledgementInvoice) {
+        const acknowledgement = InvoiceModule.generateServiceAcknowledgement(newService);
+        if (acknowledgement) {
             newService.acknowledgementGenerated = true;
-            newService.acknowledgementInvoiceId = acknowledgementInvoice.id;
+            newService.acknowledgementInvoiceId = acknowledgement.id;
         }
     }
     
@@ -430,7 +430,7 @@ function completeService(event, serviceId) {
     service.completionDescription = description;
     service.warrantyPeriod = warranty;
     
-    // Generate Service Completion Invoice automatically
+    // Generate Service Completion Invoice automatically (goes to main invoice list)
     if (window.InvoiceModule) {
         const completionInvoice = InvoiceModule.generateServiceCompletionInvoice(service);
         if (completionInvoice) {
@@ -448,7 +448,7 @@ function completeService(event, serviceId) {
 }
 
 /**
- * View service acknowledgement invoice
+ * View service acknowledgement (separate tracking)
  */
 function viewServiceAcknowledgement(serviceId) {
     if (!window.InvoiceModule) {
@@ -456,18 +456,11 @@ function viewServiceAcknowledgement(serviceId) {
         return;
     }
     
-    const invoices = InvoiceModule.getInvoicesForTransaction(serviceId, 'service');
-    const acknowledgement = invoices.find(inv => inv.type === 'Service Acknowledgement');
-    
-    if (acknowledgement) {
-        InvoiceModule.viewInvoice(acknowledgement.id);
-    } else {
-        Utils.showNotification('No acknowledgement found for this service.');
-    }
+    InvoiceModule.viewServiceAcknowledgement(serviceId);
 }
 
 /**
- * View service completion invoice
+ * View service completion invoice (from main invoice list)
  */
 function viewServiceCompletionInvoice(serviceId) {
     if (!window.InvoiceModule) {
@@ -685,8 +678,8 @@ function renderServiceTable() {
         
         // Add invoice view buttons
         const hasAcknowledgement = window.InvoiceModule && 
-            InvoiceModule.getInvoicesForTransaction(service.id, 'service')
-                .some(inv => inv.type === 'Service Acknowledgement');
+            InvoiceModule.hasServiceAcknowledgement && 
+            InvoiceModule.hasServiceAcknowledgement(service.id);
         
         const hasCompletionInvoice = window.InvoiceModule && 
             InvoiceModule.getInvoicesForTransaction(service.id, 'service')
@@ -699,7 +692,7 @@ function renderServiceTable() {
                 ${!AuthModule.hasPermission('service') ? 'disabled' : ''}>Delete</button>
         `;
         
-        if (hasAcknowledgement) {
+        if (hasAcknowledgement || service.acknowledgementGenerated) {
             actionButtons += `
                 <button class="btn btn-success" onclick="viewServiceAcknowledgement(${service.id})" title="View Acknowledgement">Receipt</button>
             `;
