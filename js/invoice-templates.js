@@ -1,21 +1,24 @@
-// ZEDSON WATCHCRAFT - Invoice Templates Module
+// ZEDSON WATCHCRAFT - Invoice Templates Module with Logo Integration
 
 /**
- * Professional Invoice Templates based on uploaded design
+ * Professional Invoice Templates with Logo and Updated Design
  */
 
 /**
- * Create Sales Invoice HTML with new design
+ * Create Sales Invoice HTML with logo and updated design
  */
 function createSalesInvoiceHTML(invoice) {
     return `
         <div style="max-width: 800px; margin: 0 auto; padding: 20px; font-family: Arial, sans-serif; background: white; color: #333;">
-            <!-- Header Section -->
+            <!-- Header Section with Logo -->
             <div style="background: linear-gradient(135deg, #1a237e 0%, #283593 100%); color: white; padding: 20px; border-radius: 10px 10px 0 0; margin-bottom: 0;">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <div>
-                        <h1 style="margin: 0; font-size: 2.5em; font-weight: bold;">ZEDSON</h1>
-                        <p style="margin: 5px 0 0 0; font-size: 1.2em; color: #ffd700; font-weight: 600; letter-spacing: 2px;">WATCHCRAFT</p>
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <img src="assets/zedson-logo.png" alt="ZEDSON WATCHCRAFT" style="height: 60px; width: auto; filter: brightness(0) invert(1);" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                        <div style="display: none;">
+                            <h1 style="margin: 0; font-size: 2.5em; font-weight: bold;">ZEDSON</h1>
+                            <p style="margin: 5px 0 0 0; font-size: 1.2em; color: #ffd700; font-weight: 600; letter-spacing: 2px;">WATCHCRAFT</p>
+                        </div>
                     </div>
                     <div style="text-align: right;">
                         <h2 style="margin: 0; font-size: 1.8em; color: #ffd700;">INVOICE</h2>
@@ -32,7 +35,7 @@ function createSalesInvoiceHTML(invoice) {
                         New York 10001, U.S.A
                     </div>
                     <div style="text-align: right;">
-                        <strong>Balance Due</strong><br>
+                        <strong>Invoice Amount</strong><br>
                         <span style="font-size: 1.5em; color: #1a237e; font-weight: bold;">${Utils.formatCurrency(invoice.amount)}</span>
                     </div>
                 </div>
@@ -101,8 +104,8 @@ function createSalesInvoiceHTML(invoice) {
                             <span>${Utils.formatCurrency(invoice.price * invoice.quantity)}</span>
                         </div>
                         <div style="display: flex; justify-content: space-between; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #ddd;">
-                            <span>Tax Rate:</span>
-                            <span>5.00%</span>
+                            <span>Discount:</span>
+                            <span>${Utils.formatCurrency(invoice.discountAmount || 0)}</span>
                         </div>
                         <div style="display: flex; justify-content: space-between; font-size: 1.2em; font-weight: bold; color: #1a237e;">
                             <span>Total:</span>
@@ -112,40 +115,31 @@ function createSalesInvoiceHTML(invoice) {
                 </div>
             </div>
 
-            <!-- Notes Section -->
-            <div style="background: #fff3cd; border: 1px solid #ffd700; border-radius: 5px; padding: 15px; margin-bottom: 20px;">
-                <h4 style="margin-top: 0; color: #856404;">Notes</h4>
-                <p style="margin-bottom: 0; color: #856404;">Thanks for your business.</p>
-            </div>
-
-            <!-- Terms & Conditions -->
-            <div style="background: #f8f9fa; border-radius: 5px; padding: 15px;">
-                <h4 style="margin-top: 0; color: #1a237e;">Terms & Conditions</h4>
-                <p style="margin-bottom: 0; font-size: 0.9em; color: #666;">All payments must be made in full before the commencement of any design work.</p>
-            </div>
-
             <!-- Footer -->
             <div style="text-align: center; margin-top: 30px; padding: 20px; background: linear-gradient(135deg, #1a237e, #283593); color: white; border-radius: 0 0 10px 10px;">
                 <p style="margin: 5px 0; font-size: 1.1em; font-weight: 600;">Thank you for your business!</p>
                 <p style="margin: 5px 0; font-size: 0.9em;">ZEDSON WATCHCRAFT - Your trusted watch partner</p>
-                <p style="margin: 5px 0; font-size: 0.85em;">Contact: +91- 9345667717 | Email: zedsonwatchcraft@gmail.com</p>
+                <p style="margin: 5px 0; font-size: 0.85em;">Contact: +91-9345667717 | Email: zedsonwatchcraft@gmail.com</p>
             </div>
         </div>
     `;
 }
 
 /**
- * Create Service Completion Invoice HTML with new design
+ * Create Service Completion Invoice HTML with logo and updated design
  */
 function createServiceCompletionHTML(invoice) {
     return `
         <div style="max-width: 800px; margin: 0 auto; padding: 20px; font-family: Arial, sans-serif; background: white; color: #333;">
-            <!-- Header Section -->
+            <!-- Header Section with Logo -->
             <div style="background: linear-gradient(135deg, #1a237e 0%, #283593 100%); color: white; padding: 20px; border-radius: 10px 10px 0 0; margin-bottom: 0;">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <div>
-                        <h1 style="margin: 0; font-size: 2.5em; font-weight: bold;">ZEDSON</h1>
-                        <p style="margin: 5px 0 0 0; font-size: 1.2em; color: #ffd700; font-weight: 600; letter-spacing: 2px;">WATCHCRAFT</p>
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <img src="assets/zedson-logo.png" alt="ZEDSON WATCHCRAFT" style="height: 60px; width: auto; filter: brightness(0) invert(1);" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                        <div style="display: none;">
+                            <h1 style="margin: 0; font-size: 2.5em; font-weight: bold;">ZEDSON</h1>
+                            <p style="margin: 5px 0 0 0; font-size: 1.2em; color: #ffd700; font-weight: 600; letter-spacing: 2px;">WATCHCRAFT</p>
+                        </div>
                     </div>
                     <div style="text-align: right;">
                         <h2 style="margin: 0; font-size: 1.8em; color: #ffd700;">SERVICE INVOICE</h2>
@@ -162,7 +156,7 @@ function createServiceCompletionHTML(invoice) {
                         New York 10001, U.S.A
                     </div>
                     <div style="text-align: right;">
-                        <strong>Balance Due</strong><br>
+                        <strong>Service Amount</strong><br>
                         <span style="font-size: 1.5em; color: #1a237e; font-weight: bold;">${Utils.formatCurrency(invoice.amount)}</span>
                     </div>
                 </div>
@@ -274,23 +268,89 @@ function createServiceCompletionHTML(invoice) {
                 </p>
             </div>
 
-            <!-- Notes Section -->
-            <div style="background: #fff3cd; border: 1px solid #ffd700; border-radius: 5px; padding: 15px; margin-bottom: 20px;">
-                <h4 style="margin-top: 0; color: #856404;">Notes</h4>
-                <p style="margin-bottom: 0; color: #856404;">Thank you for choosing our service!</p>
-            </div>
-
-            <!-- Terms & Conditions -->
-            <div style="background: #f8f9fa; border-radius: 5px; padding: 15px;">
-                <h4 style="margin-top: 0; color: #1a237e;">Terms & Conditions</h4>
-                <p style="margin-bottom: 0; font-size: 0.9em; color: #666;">All payments must be made in full before the commencement of any design work.</p>
-            </div>
-
-            <!-- Footer -->
+            <!-- Footer with Contact Details -->
             <div style="text-align: center; margin-top: 30px; padding: 20px; background: linear-gradient(135deg, #1a237e, #283593); color: white; border-radius: 0 0 10px 10px;">
                 <p style="margin: 5px 0; font-size: 1.1em; font-weight: 600;">Thank you for choosing our service!</p>
                 <p style="margin: 5px 0; font-size: 0.9em;">ZEDSON WATCHCRAFT - Expert watch servicing</p>
-                <p style="margin: 5px 0; font-size: 0.85em;">Contact: +91- 9345667717 | Email: zedsonwatchcraft@gmail.com</p>
+                <p style="margin: 5px 0; font-size: 0.85em;">Contact: +91-9345667717 | Email: zedsonwatchcraft@gmail.com</p>
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * Create Service Acknowledgement HTML with logo
+ */
+function createServiceAcknowledgementHTML(acknowledgement) {
+    return `
+        <div style="max-width: 800px; margin: 0 auto; padding: 20px; font-family: Arial, sans-serif; background: white; color: #333;">
+            <!-- Header Section with Logo -->
+            <div style="background: linear-gradient(135deg, #1a237e 0%, #283593 100%); color: white; padding: 20px; border-radius: 10px 10px 0 0; margin-bottom: 0;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <img src="assets/zedson-logo.png" alt="ZEDSON WATCHCRAFT" style="height: 60px; width: auto; filter: brightness(0) invert(1);" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                        <div style="display: none;">
+                            <h1 style="margin: 0; font-size: 2.5em; font-weight: bold;">ZEDSON</h1>
+                            <p style="margin: 5px 0 0 0; font-size: 1.2em; color: #ffd700; font-weight: 600; letter-spacing: 2px;">WATCHCRAFT</p>
+                        </div>
+                    </div>
+                    <div style="text-align: right;">
+                        <h2 style="margin: 0; font-size: 1.8em; color: #ffd700;">SERVICE RECEIPT</h2>
+                        <p style="margin: 5px 0 0 0; font-size: 1em;"># ${Utils.sanitizeHtml(acknowledgement.invoiceNo)}</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Service Receipt Content -->
+            <div style="background: #f8f9fa; padding: 20px; margin-bottom: 20px;">
+                <h3 style="color: #1a237e; text-align: center; margin-bottom: 20px;">WATCH RECEIVED FOR SERVICE</h3>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+                    <div>
+                        <h4 style="color: #1a237e;">Customer Details</h4>
+                        <p><strong>Name:</strong> ${Utils.sanitizeHtml(acknowledgement.customerName)}</p>
+                        <p><strong>Phone:</strong> ${Utils.sanitizeHtml(acknowledgement.customerPhone)}</p>
+                        <p><strong>Address:</strong> ${Utils.sanitizeHtml(acknowledgement.customerAddress)}</p>
+                    </div>
+                    <div>
+                        <h4 style="color: #1a237e;">Receipt Details</h4>
+                        <p><strong>Receipt No:</strong> ${Utils.sanitizeHtml(acknowledgement.invoiceNo)}</p>
+                        <p><strong>Date:</strong> ${Utils.sanitizeHtml(acknowledgement.date)}</p>
+                        <p><strong>Estimated Cost:</strong> ${Utils.formatCurrency(acknowledgement.estimatedCost)}</p>
+                    </div>
+                </div>
+                
+                <div style="background: white; padding: 15px; border-radius: 5px; border: 2px solid #1a237e;">
+                    <h4 style="color: #1a237e; text-align: center;">WATCH DETAILS</h4>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <div>
+                            <p><strong>Watch:</strong> ${Utils.sanitizeHtml(acknowledgement.watchName)}</p>
+                            <p><strong>Dial Color:</strong> ${Utils.sanitizeHtml(acknowledgement.dialColor)}</p>
+                            <p><strong>Movement:</strong> ${Utils.sanitizeHtml(acknowledgement.movementNo)}</p>
+                        </div>
+                        <div>
+                            <p><strong>Gender:</strong> ${Utils.sanitizeHtml(acknowledgement.gender)}</p>
+                            <p><strong>Case:</strong> ${Utils.sanitizeHtml(acknowledgement.caseType)}</p>
+                            <p><strong>Strap:</strong> ${Utils.sanitizeHtml(acknowledgement.strapType)}</p>
+                        </div>
+                    </div>
+                    <div style="margin-top: 15px;">
+                        <p><strong>Issue:</strong> ${Utils.sanitizeHtml(acknowledgement.issue)}</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Important Note -->
+            <div style="background: #fff3cd; border: 1px solid #ffd700; border-radius: 5px; padding: 15px; margin-bottom: 20px;">
+                <h4 style="margin-top: 0; color: #856404;">IMPORTANT</h4>
+                <p style="margin-bottom: 0; color: #856404;">Please keep this receipt safe. You will need it when collecting your watch.</p>
+            </div>
+
+            <!-- Footer with Contact Details -->
+            <div style="text-align: center; padding: 20px; background: linear-gradient(135deg, #1a237e, #283593); color: white; border-radius: 0 0 10px 10px;">
+                <p style="margin: 5px 0;">Thank you for trusting us with your timepiece!</p>
+                <p style="margin: 5px 0; font-size: 0.9em;">ZEDSON WATCHCRAFT - Expert watch servicing</p>
+                <p style="margin: 5px 0; font-size: 0.85em;">Contact: +91-9345667717 | Email: zedsonwatchcraft@gmail.com</p>
             </div>
         </div>
     `;
@@ -299,5 +359,6 @@ function createServiceCompletionHTML(invoice) {
 // Export functions for use in invoice module
 window.InvoiceTemplates = {
     createSalesInvoiceHTML,
-    createServiceCompletionHTML
+    createServiceCompletionHTML,
+    createServiceAcknowledgementHTML
 };

@@ -1,13 +1,13 @@
-// ZEDSON WATCHCRAFT - Authentication Module
+// ZEDSON WATCHCRAFT - Authentication Module with Logging and Staff Restrictions
 
 /**
- * Authentication and User Management System
+ * Authentication and User Management System with Action Logging
  */
 
 // Current logged-in user
 let currentUser = null;
 
-// User database (in production, this would be in a backend database)
+// User database
 let users = [
     { 
         username: 'admin', 
@@ -70,6 +70,11 @@ function handleLogin(event) {
         // Successful login
         currentUser = user;
         
+        // Log successful login
+        if (window.logAuthAction) {
+            logAuthAction(`User logged in successfully`, username, user.role);
+        }
+        
         // Update user info display
         document.getElementById('currentUser').textContent = `Welcome, ${user.fullName}`;
         document.getElementById('currentUserRole').textContent = user.role.toUpperCase();
@@ -89,9 +94,17 @@ function handleLogin(event) {
             updateUserTable();
         }
         
-        console.log('Login successful:', user);
+        // Initialize logging system
+        if (window.LoggingModule) {
+            LoggingModule.initializeLogging();
+        }
+        
         Utils.showNotification(`Welcome back, ${user.fullName}!`);
     } else {
+        // Log failed login attempt
+        if (window.logAuthAction) {
+            logAuthAction(`Failed login attempt`, username);
+        }
         Utils.showNotification('Invalid username or password, or account is inactive.');
     }
 }
@@ -101,6 +114,13 @@ function handleLogin(event) {
  */
 function logout() {
     if (confirm('Are you sure you want to logout?')) {
+        const username = currentUser ? currentUser.username : 'unknown';
+        
+        // Log logout
+        if (window.logAuthAction) {
+            logAuthAction(`User logged out`, username);
+        }
+        
         currentUser = null;
         
         // Show login screen and hide main app
@@ -110,8 +130,6 @@ function logout() {
         // Clear login form
         document.getElementById('loginUsername').value = '';
         document.getElementById('loginPassword').value = '';
-        
-        console.log('User logged out');
     }
 }
 
@@ -124,11 +142,12 @@ function hasPermission(section) {
 }
 
 /**
- * Setup navigation based on user role
+ * Setup navigation based on user role with staff restrictions
  */
 function setupNavigation() {
     const navButtons = document.querySelectorAll('.nav-btn');
     const userPermissions = permissions[currentUser.role];
+    const isStaff = currentUser.role === 'staff';
     
     navButtons.forEach(button => {
         const section = button.onclick.toString().match(/showSection\('(.+?)'/);
@@ -142,7 +161,7 @@ function setupNavigation() {
         }
     });
 
-    // Show user management button only for admin
+    // Hide user management button for staff and non-admin users
     const userMgmtBtn = document.getElementById('userManagementBtn');
     if (currentUser.role === 'admin') {
         userMgmtBtn.style.display = 'inline-block';
@@ -163,6 +182,11 @@ function setupNavigation() {
             }
         });
     }
+    
+    // Log navigation setup
+    if (window.logAction) {
+        logAction(`Navigation setup completed for ${currentUser.role} user`);
+    }
 }
 
 /**
@@ -172,6 +196,10 @@ function openAddUserModal() {
     if (currentUser.role !== 'admin') {
         Utils.showNotification('Only administrators can add new users.');
         return;
+    }
+    
+    if (window.logAction) {
+        logAction('Opened add user modal');
     }
     document.getElementById('addUserModal').style.display = 'block';
 }
@@ -229,6 +257,12 @@ function addNewUser(event) {
     };
 
     users.push(newUser);
+    
+    // Log user creation
+    if (window.logUserManagementAction) {
+        logUserManagementAction(`Created new user: ${username} with role: ${role}`, newUser);
+    }
+    
     updateUserTable();
     closeModal('addUserModal');
     event.target.reset();
@@ -259,7 +293,8 @@ function updateUserTable() {
                 <td>${Utils.sanitizeHtml(user.lastLogin)}</td>
                 <td>
                     <button class="btn" onclick="editUser('${user.username}')">Edit</button>
-                    <button class="btn btn-danger" onclick="confirmTransaction('Are you sure you want to delete user ${user.username}?', () => deleteUser('${user.username}'))" ${!canDelete ? 'disabled' : ''}>Delete</button>
+                    <button class="btn btn-danger" onclick="confirmTransaction('Are you sure you want to delete user ${user.username}?', () => deleteUser('${user.username}'))" 
+                            ${!canDelete ? 'disabled' : ''}>Delete</button>
                 </td>
             </tr>
         `;
@@ -279,6 +314,10 @@ function editUser(username) {
     if (!user) {
         Utils.showNotification('User not found.');
         return;
+    }
+
+    if (window.logAction) {
+        logAction(`Opened edit modal for user: ${username}`);
     }
 
     // Create edit modal
@@ -352,6 +391,17 @@ function updateUser(event, username) {
         return;
     }
 
+    // Log user update
+    if (window.logUserManagementAction) {
+        logUserManagementAction(`Updated user: ${username}. Role: ${user.role} -> ${role}, Status: ${user.status} -> ${status}`, {
+            username: username,
+            oldRole: user.role,
+            newRole: role,
+            oldStatus: user.status,
+            newStatus: status
+        }, username);
+    }
+
     // Update user
     user.fullName = fullName;
     user.email = email;
@@ -384,6 +434,13 @@ function deleteUser(username) {
     }
 
     if (confirm(`Are you sure you want to delete user "${username}"?`)) {
+        const userToDelete = users.find(u => u.username === username);
+        
+        // Log user deletion
+        if (window.logUserManagementAction) {
+            logUserManagementAction(`Deleted user: ${username}`, userToDelete, username);
+        }
+        
         users = users.filter(u => u.username !== username);
         updateUserTable();
         Utils.showNotification('User deleted successfully!');
@@ -404,6 +461,20 @@ function isLoggedIn() {
     return currentUser !== null;
 }
 
+/**
+ * Check if current user is staff
+ */
+function isStaffUser() {
+    return currentUser && currentUser.role === 'staff';
+}
+
+/**
+ * Check if user can edit/delete (not staff)
+ */
+function canEditDelete() {
+    return currentUser && currentUser.role !== 'staff';
+}
+
 // Export functions for global use
 window.AuthModule = {
     handleLogin,
@@ -417,5 +488,7 @@ window.AuthModule = {
     updateUser,
     deleteUser,
     getCurrentUser,
-    isLoggedIn
+    isLoggedIn,
+    isStaffUser,
+    canEditDelete
 };

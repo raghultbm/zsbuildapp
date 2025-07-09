@@ -1,18 +1,22 @@
-// ZEDSON WATCHCRAFT - App Core Module (Part 1)
+// ZEDSON WATCHCRAFT - App Core Module with Logging Integration
 
 /**
- * Main Application Controller - Core Functions
- * Navigation, Dashboard, and Basic App Management
+ * Main Application Controller - Core Functions with Action Logging and Revenue Analytics
  */
 
 /**
- * Navigation function
+ * Navigation function with logging
  */
 function showSection(sectionId, button) {
     // Check permissions
     if (!AuthModule.hasPermission(sectionId)) {
         Utils.showNotification('You do not have permission to access this section.');
         return;
+    }
+
+    // Log navigation
+    if (window.logNavigationAction) {
+        logNavigationAction(sectionId);
     }
 
     // Hide all sections
@@ -117,11 +121,14 @@ function getTodayRevenue() {
 }
 
 /**
- * Update dashboard statistics
+ * Update dashboard statistics with role-based restrictions
  */
 function updateDashboard() {
+    const currentUser = AuthModule.getCurrentUser();
+    const isStaff = currentUser && currentUser.role === 'staff';
+    
     // Update statistics cards with safe checks
-    if (window.InventoryModule) {
+    if (window.InventoryModule && !isStaff) {
         const inventoryStats = InventoryModule.getInventoryStats();
         const totalWatchesElement = document.getElementById('totalWatches');
         if (totalWatchesElement) {
@@ -129,7 +136,7 @@ function updateDashboard() {
         }
     }
     
-    if (window.CustomerModule) {
+    if (window.CustomerModule && !isStaff) {
         const customerStats = CustomerModule.getCustomerStats();
         const totalCustomersElement = document.getElementById('totalCustomers');
         if (totalCustomersElement) {
@@ -137,14 +144,19 @@ function updateDashboard() {
         }
     }
     
-    // Update combined today's revenue (Sales + Services)
-    const todayRevenue = getTodayRevenue();
-    const todayRevenueElement = document.getElementById('todayRevenue');
-    if (todayRevenueElement) {
-        todayRevenueElement.textContent = Utils.formatCurrency(todayRevenue.totalRevenue);
+    // Update combined today's sales (Sales + Services) - Change label to "Today's Sales"
+    const todaySales = getTodayRevenue();
+    const todaySalesElement = document.getElementById('todayRevenue');
+    if (todaySalesElement) {
+        todaySalesElement.textContent = Utils.formatCurrency(todaySales.totalRevenue);
+        // Update the label to "Today's Sales"
+        const labelElement = todaySalesElement.nextElementSibling;
+        if (labelElement && labelElement.tagName === 'P') {
+            labelElement.textContent = "Today's Sales";
+        }
     }
     
-    // Update incomplete services
+    // Update incomplete services - visible for both staff and others
     if (window.ServiceModule) {
         const serviceStats = ServiceModule.getServiceStats();
         const incompleteServicesElement = document.getElementById('incompleteServices');
@@ -153,7 +165,8 @@ function updateDashboard() {
         }
     }
 
-    if (window.InvoiceModule) {
+    // Hide invoices stat for staff
+    if (window.InvoiceModule && !isStaff) {
         const invoiceStats = InvoiceModule.getInvoiceStats();
         const totalInvoicesElement = document.getElementById('totalInvoices');
         if (totalInvoicesElement) {
@@ -161,8 +174,49 @@ function updateDashboard() {
         }
     }
 
+    // Update dashboard visibility based on user role
+    updateDashboardVisibility();
+    
     // Update recent activities
     updateRecentActivities();
+}
+
+/**
+ * Update dashboard visibility based on user role
+ */
+function updateDashboardVisibility() {
+    const currentUser = AuthModule.getCurrentUser();
+    const isStaff = currentUser && currentUser.role === 'staff';
+    
+    // Get all stat cards
+    const statCards = document.querySelectorAll('.stat-card');
+    
+    if (isStaff) {
+        // For staff, only show Today's Sales and Incomplete Services
+        statCards.forEach(card => {
+            const cardText = card.querySelector('p')?.textContent;
+            if (cardText === "Today's Sales" || cardText === "Incomplete Services") {
+                card.style.display = 'block';
+                // Remove clickable functionality for staff
+                card.classList.remove('clickable-stat');
+                card.onclick = null;
+            } else {
+                card.style.display = 'none';
+            }
+        });
+    } else {
+        // For non-staff, show all cards
+        statCards.forEach(card => {
+            card.style.display = 'block';
+        });
+        
+        // Re-enable clickable functionality for Today's Sales (non-staff only)
+        const todaySalesCard = document.getElementById('todayRevenue')?.closest('.stat-card');
+        if (todaySalesCard) {
+            todaySalesCard.classList.add('clickable-stat');
+            todaySalesCard.onclick = () => openRevenueAnalytics();
+        }
+    }
 }
 
 /**
@@ -203,13 +257,27 @@ function updateRecentActivities() {
 }
 
 /**
- * Open Revenue Analytics Modal - UPDATED
+ * Open Revenue Analytics Modal with staff restrictions
  */
 function openRevenueAnalytics() {
+    const currentUser = AuthModule.getCurrentUser();
+    const isStaff = currentUser && currentUser.role === 'staff';
+    
+    // Staff users cannot access analytics
+    if (isStaff) {
+        Utils.showNotification('Revenue analytics is not available for staff users.');
+        return;
+    }
+    
     const modal = document.getElementById('revenueAnalyticsModal');
     if (!modal) {
         Utils.showNotification('Revenue analytics modal not found');
         return;
+    }
+    
+    // Log action
+    if (window.logAction) {
+        logAction('Opened revenue analytics modal');
     }
     
     modal.style.display = 'block';
@@ -236,7 +304,7 @@ function openRevenueAnalytics() {
 }
 
 /**
- * Toggle Revenue Filter Inputs - UPDATED
+ * Toggle Revenue Filter Inputs with updated structure
  */
 function toggleRevenueFilterInputs() {
     const filterType = document.getElementById('revenueFilterType')?.value;
@@ -256,11 +324,152 @@ function toggleRevenueFilterInputs() {
     } else if (filterType === 'monthly') {
         monthGroup.style.display = 'block';
         yearGroup.style.display = 'block';
-    } else if (filterType === 'salesOnly' || filterType === 'servicesOnly') {
-        yearGroup.style.display = 'block';
     } else {
         yearGroup.style.display = 'block';
     }
+}
+
+/**
+ * Apply Revenue Filter with separate revenue type filter
+ */
+function applyRevenueFilter() {
+    if (!window.SalesModule || !window.ServiceModule) {
+        Utils.showNotification('Sales or Service module not available');
+        return;
+    }
+    
+    const filterType = document.getElementById('revenueFilterType')?.value;
+    const revenueType = document.getElementById('revenueTypeFilter')?.value || 'all';
+    const resultsDiv = document.getElementById('revenueFilterResults');
+    
+    if (!filterType || !resultsDiv) return;
+    
+    let filteredSales = [];
+    let filteredServices = [];
+    let title = '';
+    
+    // First filter by date/time
+    if (filterType === 'dateRange') {
+        const fromDate = document.getElementById('revenueFromDate')?.value;
+        const toDate = document.getElementById('revenueToDate')?.value;
+        
+        if (!fromDate || !toDate) {
+            Utils.showNotification('Please select both from and to dates.');
+            return;
+        }
+        
+        filteredSales = SalesModule.filterSalesByDateRange(fromDate, toDate);
+        filteredServices = ServiceModule.filterServicesByDateRange(fromDate, toDate)
+            .filter(s => s.status === 'completed');
+        title = `Revenue from ${Utils.formatDate(fromDate)} to ${Utils.formatDate(toDate)}`;
+        
+    } else if (filterType === 'monthly') {
+        const month = document.getElementById('revenueMonth')?.value;
+        const year = document.getElementById('revenueYear')?.value;
+        
+        if (month === null || !year) return;
+        
+        filteredSales = SalesModule.filterSalesByMonth(month, year);
+        filteredServices = ServiceModule.filterServicesByMonth(month, year)
+            .filter(s => s.status === 'completed');
+        const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                           'July', 'August', 'September', 'October', 'November', 'December'];
+        title = `Revenue for ${monthNames[month]} ${year}`;
+        
+    } else {
+        filteredSales = SalesModule.sales || [];
+        filteredServices = (ServiceModule.services || []).filter(s => s.status === 'completed');
+        title = 'All Revenue';
+    }
+    
+    // Then filter by revenue type
+    if (revenueType === 'sales') {
+        filteredServices = [];
+        title += ' (Sales Only)';
+    } else if (revenueType === 'services') {
+        filteredSales = [];
+        title += ' (Services Only)';
+    }
+    
+    // Calculate totals
+    const salesAmount = filteredSales.reduce((sum, sale) => sum + sale.totalAmount, 0);
+    const servicesAmount = filteredServices.reduce((sum, service) => sum + service.cost, 0);
+    const totalAmount = salesAmount + servicesAmount;
+    const totalTransactions = filteredSales.length + filteredServices.length;
+    
+    // Display results
+    resultsDiv.innerHTML = `
+        <div class="filter-results">
+            <h3>${title}</h3>
+            <div class="stats" style="margin: 20px 0;">
+                <div class="stat-card" style="margin: 10px;">
+                    <h3>${totalTransactions}</h3>
+                    <p>Total Transactions</p>
+                </div>
+                <div class="stat-card" style="margin: 10px;">
+                    <h3>${Utils.formatCurrency(salesAmount)}</h3>
+                    <p>Sales Revenue</p>
+                </div>
+                <div class="stat-card" style="margin: 10px;">
+                    <h3>${Utils.formatCurrency(servicesAmount)}</h3>
+                    <p>Services Revenue</p>
+                </div>
+                <div class="stat-card" style="margin: 10px;">
+                    <h3>${Utils.formatCurrency(totalAmount)}</h3>
+                    <p>Total Revenue</p>
+                </div>
+            </div>
+            <div style="max-height: 300px; overflow-y: auto;">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Type</th>
+                            <th>Date</th>
+                            <th>Customer</th>
+                            <th>Details</th>
+                            <th>Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${filteredSales.map(sale => `
+                            <tr>
+                                <td><span class="status available">Sales</span></td>
+                                <td>${Utils.sanitizeHtml(sale.date)}</td>
+                                <td>${Utils.sanitizeHtml(sale.customerName)}</td>
+                                <td>${Utils.sanitizeHtml(sale.watchName)}</td>
+                                <td>${Utils.formatCurrency(sale.totalAmount)}</td>
+                            </tr>
+                        `).join('')}
+                        ${filteredServices.map(service => `
+                            <tr>
+                                <td><span class="status completed">Service</span></td>
+                                <td>${Utils.sanitizeHtml(service.actualDelivery || service.date)}</td>
+                                <td>${Utils.sanitizeHtml(service.customerName)}</td>
+                                <td>${Utils.sanitizeHtml(service.watchName)}</td>
+                                <td>${Utils.formatCurrency(service.cost)}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * Reset Revenue Filter
+ */
+function resetRevenueFilter() {
+    const filterType = document.getElementById('revenueFilterType');
+    const revenueType = document.getElementById('revenueTypeFilter');
+    const resultsDiv = document.getElementById('revenueFilterResults');
+    
+    if (filterType) filterType.value = 'all';
+    if (revenueType) revenueType.value = 'all';
+    if (resultsDiv) resultsDiv.innerHTML = '';
+    
+    toggleRevenueFilterInputs();
+    applyRevenueFilter();
 }
 
 /**
@@ -270,17 +479,28 @@ function closeModal(modalId) {
     const modal = document.getElementById(modalId);
     if (modal) {
         modal.style.display = 'none';
+        
+        // Log modal close action
+        if (window.logAction) {
+            logAction(`Closed modal: ${modalId}`);
+        }
     }
 }
 
 /**
- * Generic delete function for table rows
+ * Generic delete function for table rows with logging
  */
 function deleteItem(button) {
     if (confirm('Are you sure you want to delete this item?')) {
         const row = button.closest('tr');
         if (row) {
             row.remove();
+            
+            // Log deletion
+            if (window.logAction) {
+                logAction('Deleted item from table');
+            }
+            
             Utils.showNotification('Item deleted successfully!');
             updateDashboard();
         }
@@ -288,7 +508,7 @@ function deleteItem(button) {
 }
 
 /**
- * Confirmation prompts for transactions - moved before action
+ * Confirmation prompts for transactions
  */
 function confirmTransaction(message, callback) {
     if (confirm(message)) {
@@ -343,13 +563,18 @@ function initializeSampleData() {
 }
 
 /**
- * Initialize application
+ * Initialize application with logging
  */
 function initializeApp() {
     console.log('Initializing ZEDSON WATCHCRAFT Management System...');
     
     try {
-        // Load modal templates (will be handled in extended module)
+        // Initialize logging first
+        if (window.LoggingModule) {
+            LoggingModule.initializeLogging();
+        }
+        
+        // Load modal templates
         if (window.AppExtendedModule && AppExtendedModule.loadModalTemplates) {
             AppExtendedModule.loadModalTemplates();
         }
@@ -367,6 +592,11 @@ function initializeApp() {
         if (loginScreen) loginScreen.style.display = 'flex';
         if (mainApp) mainApp.classList.remove('logged-in');
         
+        // Log system startup
+        if (window.logAction) {
+            logAction('System initialized successfully');
+        }
+        
         console.log('Application initialized successfully');
     } catch (error) {
         console.error('Error during application initialization:', error);
@@ -381,9 +611,12 @@ window.AppCoreModule = {
     getTodayDate,
     getTodayRevenue,
     updateDashboard,
+    updateDashboardVisibility,
     updateRecentActivities,
     openRevenueAnalytics,
     toggleRevenueFilterInputs,
+    applyRevenueFilter,
+    resetRevenueFilter,
     closeModal,
     deleteItem,
     confirmTransaction,

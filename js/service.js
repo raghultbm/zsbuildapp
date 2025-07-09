@@ -1,7 +1,7 @@
-// ZEDSON WATCHCRAFT - Service Management Module (Updated with Search)
+// ZEDSON WATCHCRAFT - Service Management Module with Image Upload
 
 /**
- * Service Request Management System
+ * Service Request Management System with Image Upload and Final Service Cost
  */
 
 // Service requests database
@@ -17,7 +17,9 @@ function openNewServiceModal() {
         return;
     }
     
-    console.log('Opening New Service Modal');
+    if (window.logAction) {
+        logAction('Opened new service modal');
+    }
     
     // Populate customer dropdown
     CustomerModule.populateCustomerDropdown('serviceCustomer');
@@ -67,7 +69,7 @@ function addNewService(event) {
         return;
     }
 
-    // Create service object with full forms and time
+    // Create service object
     const now = new Date();
     const newService = {
         id: nextServiceId++,
@@ -76,14 +78,14 @@ function addNewService(event) {
         timestamp: Utils.getCurrentTimestamp(),
         customerId: customerId,
         customerName: customer.name,
-        watchName: `${brand} ${model}`, // Auto-generated from brand and model
+        watchName: `${brand} ${model}`,
         brand: brand,
         model: model,
         dialColor: dialColor,
         movementNo: movementNo,
-        gender: gender, // Full form stored
-        caseType: caseType, // Full form stored
-        strapType: strapType, // Full form stored
+        gender: gender,
+        caseType: caseType,
+        strapType: strapType,
         issue: issue,
         cost: cost,
         status: 'pending',
@@ -100,13 +102,18 @@ function addNewService(event) {
         completionInvoiceId: null
     };
 
+    // Log action
+    if (window.logServiceAction) {
+        logServiceAction(`Created service request for ${customer.name}'s ${brand} ${model}. Estimated cost: ${Utils.formatCurrency(cost)}`, newService);
+    }
+
     // Add to services array
     services.push(newService);
     
     // Update customer service count
     CustomerModule.incrementCustomerServices(customerId);
     
-    // Generate Service Acknowledgement automatically (separate tracking)
+    // Generate Service Acknowledgement automatically
     if (window.InvoiceModule) {
         const acknowledgement = InvoiceModule.generateServiceAcknowledgement(newService);
         if (acknowledgement) {
@@ -124,7 +131,6 @@ function addNewService(event) {
     event.target.reset();
     
     Utils.showNotification(`Service request created successfully! Request ID: ${newService.id}. Acknowledgement generated.`);
-    console.log('Service added:', newService);
 }
 
 /**
@@ -146,19 +152,17 @@ function updateServiceStatus(serviceId, newStatus) {
     } else if (newStatus === 'on-hold') {
         confirmMessage = `Put service for ${service.customerName}'s ${service.watchName} on hold?`;
     } else if (newStatus === 'completed' && oldStatus === 'in-progress') {
-        // For completion, show the completion modal instead
         showServiceCompletionModal(service);
         return;
     }
     
     if (confirmMessage && !confirm(confirmMessage)) {
-        return; // User cancelled
+        return;
     }
     
-    if (newStatus === 'completed' && oldStatus === 'in-progress') {
-        // Show completion details modal
-        showServiceCompletionModal(service);
-        return;
+    // Log action
+    if (window.logAction) {
+        logAction(`Changed service ${serviceId} status from ${oldStatus} to ${newStatus}`);
     }
     
     service.status = newStatus;
@@ -176,9 +180,174 @@ function updateServiceStatus(serviceId, newStatus) {
 }
 
 /**
+ * Show service completion modal with image upload and final service cost
+ */
+function showServiceCompletionModal(service) {
+    const confirmMessage = `Complete service for ${service.customerName}'s ${service.watchName}?\n\nThis will require completion details and warranty information.`;
+    
+    if (!confirm(confirmMessage)) {
+        return;
+    }
+    
+    const completionModal = document.createElement('div');
+    completionModal.className = 'modal';
+    completionModal.id = 'serviceCompletionModal';
+    completionModal.style.display = 'block';
+    completionModal.innerHTML = `
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('serviceCompletionModal')">&times;</span>
+            <h2>Complete Service Request</h2>
+            <p><strong>Service ID:</strong> ${service.id} - ${service.watchName}</p>
+            <form onsubmit="ServiceModule.completeService(event, ${service.id})">
+                <div class="form-group">
+                    <label>Completion Image:</label>
+                    <input type="file" id="completionImage" accept="image/*" onchange="previewCompletionImage(event)">
+                    <small>Upload an image showing the completed work (optional)</small>
+                    <div id="imagePreview" style="margin-top: 10px; display: none;">
+                        <img id="previewImg" style="max-width: 200px; max-height: 200px; border-radius: 5px; border: 1px solid #ddd;">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Work Description:</label>
+                    <textarea id="completionDescription" rows="4" required 
+                        placeholder="Describe the work performed, parts replaced, etc."></textarea>
+                </div>
+                <div class="grid grid-2">
+                    <div class="form-group">
+                        <label>Service Cost (₹):</label>
+                        <input type="number" id="finalServiceCost" min="0" step="0.01" value="${service.cost}" required>
+                        <small>Final billing amount for the service</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Warranty Period (months):</label>
+                        <input type="number" id="warrantyPeriod" min="0" max="60" value="6" required>
+                        <small>Enter warranty period in months (0-60)</small>
+                    </div>
+                </div>
+                <div class="grid grid-2">
+                    <button type="button" class="btn btn-danger" onclick="closeModal('serviceCompletionModal')">Cancel</button>
+                    <button type="submit" class="btn btn-success">Complete Service</button>
+                </div>
+            </form>
+        </div>
+    `;
+    
+    document.body.appendChild(completionModal);
+}
+
+/**
+ * Preview uploaded completion image
+ */
+function previewCompletionImage(event) {
+    const file = event.target.files[0];
+    const preview = document.getElementById('imagePreview');
+    const previewImg = document.getElementById('previewImg');
+    
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            previewImg.src = e.target.result;
+            preview.style.display = 'block';
+        };
+        reader.readAsDataURL(file);
+    } else {
+        preview.style.display = 'none';
+    }
+}
+
+/**
+ * Complete service with details including image and final cost
+ */
+function completeService(event, serviceId) {
+    event.preventDefault();
+    
+    const service = services.find(s => s.id === serviceId);
+    if (!service) {
+        Utils.showNotification('Service not found.');
+        return;
+    }
+    
+    const imageFile = document.getElementById('completionImage').files[0];
+    const description = document.getElementById('completionDescription').value.trim();
+    const finalCost = parseFloat(document.getElementById('finalServiceCost').value);
+    const warranty = parseInt(document.getElementById('warrantyPeriod').value);
+    
+    if (!description) {
+        Utils.showNotification('Please provide a work description.');
+        return;
+    }
+    
+    if (finalCost < 0) {
+        Utils.showNotification('Service cost cannot be negative.');
+        return;
+    }
+    
+    if (warranty < 0 || warranty > 60) {
+        Utils.showNotification('Warranty period must be between 0 and 60 months.');
+        return;
+    }
+    
+    // Handle image upload (in a real app, this would upload to a server)
+    let imageDataUrl = null;
+    if (imageFile) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            imageDataUrl = e.target.result;
+            finishServiceCompletion(service, imageDataUrl, description, finalCost, warranty);
+        };
+        reader.readAsDataURL(imageFile);
+    } else {
+        finishServiceCompletion(service, null, description, finalCost, warranty);
+    }
+}
+
+/**
+ * Finish service completion after image processing
+ */
+function finishServiceCompletion(service, imageDataUrl, description, finalCost, warranty) {
+    // Log action
+    if (window.logAction) {
+        logAction(`Completed service ${service.id} for ${service.customerName}'s ${service.watchName}. Final cost: ${Utils.formatCurrency(finalCost)}`);
+    }
+    
+    // Update service
+    service.status = 'completed';
+    service.completedAt = Utils.getCurrentTimestamp();
+    service.actualDelivery = Utils.formatDate(new Date());
+    service.completionImage = imageDataUrl;
+    service.completionDescription = description;
+    service.cost = finalCost; // Update with final cost
+    service.warrantyPeriod = warranty;
+    
+    // Generate Service Completion Invoice automatically
+    if (window.InvoiceModule) {
+        const completionInvoice = InvoiceModule.generateServiceCompletionInvoice(service);
+        if (completionInvoice) {
+            service.completionInvoiceGenerated = true;
+            service.completionInvoiceId = completionInvoice.id;
+        }
+    }
+    
+    renderServiceTable();
+    updateDashboard();
+    closeModal('serviceCompletionModal');
+    document.getElementById('serviceCompletionModal').remove();
+    
+    Utils.showNotification('Service completed successfully! Completion invoice generated.');
+}
+
+/**
  * Edit service
  */
 function editService(serviceId) {
+    const currentUser = AuthModule.getCurrentUser();
+    const isStaff = currentUser && currentUser.role === 'staff';
+    
+    if (isStaff) {
+        Utils.showNotification('Staff users cannot edit service requests.');
+        return;
+    }
+    
     if (!AuthModule.hasPermission('service')) {
         Utils.showNotification('You do not have permission to edit service requests.');
         return;
@@ -272,7 +441,6 @@ function editService(serviceId) {
     // Populate customer dropdown and set current customer
     if (window.CustomerModule) {
         CustomerModule.populateCustomerDropdown('editServiceCustomer');
-        // Set the current customer as selected
         setTimeout(() => {
             const customerSelect = document.getElementById('editServiceCustomer');
             if (customerSelect) {
@@ -349,105 +517,48 @@ function updateService(event, serviceId) {
 }
 
 /**
- * Show service completion modal
+ * Delete service request
  */
-function showServiceCompletionModal(service) {
-    // Show confirmation BEFORE opening completion modal
-    const confirmMessage = `Complete service for ${service.customerName}'s ${service.watchName}?\n\nThis will require completion details and warranty information.`;
+function deleteService(serviceId) {
+    const currentUser = AuthModule.getCurrentUser();
+    const isStaff = currentUser && currentUser.role === 'staff';
     
-    if (!confirm(confirmMessage)) {
-        return; // User cancelled
+    if (isStaff) {
+        Utils.showNotification('Staff users cannot delete service requests.');
+        return;
     }
     
-    const completionModal = document.createElement('div');
-    completionModal.className = 'modal';
-    completionModal.id = 'serviceCompletionModal';
-    completionModal.style.display = 'block';
-    completionModal.innerHTML = `
-        <div class="modal-content">
-            <span class="close" onclick="closeModal('serviceCompletionModal')">&times;</span>
-            <h2>Complete Service Request</h2>
-            <p><strong>Service ID:</strong> ${service.id} - ${service.watchName}</p>
-            <form onsubmit="ServiceModule.completeService(event, ${service.id})">
-                <div class="form-group">
-                    <label>Completion Image URL:</label>
-                    <input type="url" id="completionImage" placeholder="Enter image URL (optional)">
-                    <small>Optional: URL to an image showing the completed work</small>
-                </div>
-                <div class="form-group">
-                    <label>Work Description:</label>
-                    <textarea id="completionDescription" rows="4" required 
-                        placeholder="Describe the work performed, parts replaced, etc."></textarea>
-                </div>
-                <div class="form-group">
-                    <label>Warranty Period (months):</label>
-                    <input type="number" id="warrantyPeriod" min="0" max="60" value="6" required>
-                    <small>Enter warranty period in months (0-60)</small>
-                </div>
-                <div class="grid grid-2">
-                    <button type="button" class="btn btn-danger" onclick="closeModal('serviceCompletionModal')">Cancel</button>
-                    <button type="submit" class="btn btn-success">Complete Service</button>
-                </div>
-            </form>
-        </div>
-    `;
-    
-    document.body.appendChild(completionModal);
-}
+    if (!AuthModule.hasPermission('service')) {
+        Utils.showNotification('You do not have permission to delete service requests.');
+        return;
+    }
 
-/**
- * Complete service with details
- */
-function completeService(event, serviceId) {
-    event.preventDefault();
-    
     const service = services.find(s => s.id === serviceId);
     if (!service) {
-        Utils.showNotification('Service not found.');
+        Utils.showNotification('Service request not found.');
         return;
     }
-    
-    const image = document.getElementById('completionImage').value.trim();
-    const description = document.getElementById('completionDescription').value.trim();
-    const warranty = parseInt(document.getElementById('warrantyPeriod').value);
-    
-    if (!description) {
-        Utils.showNotification('Please provide a work description.');
-        return;
-    }
-    
-    if (warranty < 0 || warranty > 60) {
-        Utils.showNotification('Warranty period must be between 0 and 60 months.');
-        return;
-    }
-    
-    // Update service
-    service.status = 'completed';
-    service.completedAt = Utils.getCurrentTimestamp();
-    service.actualDelivery = Utils.formatDate(new Date());
-    service.completionImage = image || null;
-    service.completionDescription = description;
-    service.warrantyPeriod = warranty;
-    
-    // Generate Service Completion Invoice automatically (goes to main invoice list)
-    if (window.InvoiceModule) {
-        const completionInvoice = InvoiceModule.generateServiceCompletionInvoice(service);
-        if (completionInvoice) {
-            service.completionInvoiceGenerated = true;
-            service.completionInvoiceId = completionInvoice.id;
+
+    if (confirm(`Are you sure you want to delete the service request for ${service.watchName}?`)) {
+        // Log action
+        if (window.logAction) {
+            logAction(`Deleted service request ${serviceId} for ${service.customerName}'s ${service.watchName}`);
         }
+        
+        // Decrease customer service count
+        CustomerModule.decrementCustomerServices(service.customerId);
+        
+        // Remove from services array
+        services = services.filter(s => s.id !== serviceId);
+        
+        renderServiceTable();
+        updateDashboard();
+        Utils.showNotification('Service request deleted successfully!');
     }
-    
-    renderServiceTable();
-    updateDashboard();
-    closeModal('serviceCompletionModal');
-    document.getElementById('serviceCompletionModal').remove();
-    
-    Utils.showNotification('Service completed successfully! Completion invoice generated.');
 }
 
 /**
- * View service acknowledgement (separate tracking)
+ * View service acknowledgement
  */
 function viewServiceAcknowledgement(serviceId) {
     if (!window.InvoiceModule) {
@@ -459,7 +570,7 @@ function viewServiceAcknowledgement(serviceId) {
 }
 
 /**
- * View service completion invoice (from main invoice list)
+ * View service completion invoice
  */
 function viewServiceCompletionInvoice(serviceId) {
     if (!window.InvoiceModule) {
@@ -478,92 +589,22 @@ function viewServiceCompletionInvoice(serviceId) {
 }
 
 /**
- * Delete service request
+ * Search services
  */
-function deleteService(serviceId) {
-    if (!AuthModule.hasPermission('service')) {
-        Utils.showNotification('You do not have permission to delete service requests.');
-        return;
-    }
-
-    const service = services.find(s => s.id === serviceId);
-    if (!service) {
-        Utils.showNotification('Service request not found.');
-        return;
-    }
-
-    if (confirm(`Are you sure you want to delete the service request for ${service.watchName}?`)) {
-        // Decrease customer service count
-        CustomerModule.decrementCustomerServices(service.customerId);
-        
-        // Remove from services array
-        services = services.filter(s => s.id !== serviceId);
-        
-        renderServiceTable();
-        updateDashboard();
-        Utils.showNotification('Service request deleted successfully!');
-    }
-}
-
-/**
- * Add note to service
- */
-function addServiceNote(serviceId, note) {
-    const service = services.find(s => s.id === serviceId);
-    if (service) {
-        service.notes.push({
-            note: note,
-            timestamp: Utils.getCurrentTimestamp(),
-            addedBy: AuthModule.getCurrentUser().username
-        });
-        Utils.showNotification('Note added to service request');
-    }
-}
-
-/**
- * Set estimated delivery date
- */
-function setEstimatedDelivery(serviceId, deliveryDate) {
-    const service = services.find(s => s.id === serviceId);
-    if (service) {
-        service.estimatedDelivery = deliveryDate;
-        renderServiceTable();
-        Utils.showNotification('Estimated delivery date updated');
-    }
-}
-
-/**
- * Get service by ID
- */
-function getServiceById(serviceId) {
-    return services.find(s => s.id === serviceId);
-}
-
-/**
- * Get pending services
- */
-function getPendingServices(limit = 5) {
-    return services
-        .filter(s => s.status === 'pending')
-        .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-        .slice(0, limit);
-}
-
-/**
- * Get services by status
- */
-function getServicesByStatus(status) {
-    return services.filter(s => s.status === status);
-}
-
-/**
- * Get incomplete services (all non-completed services)
- */
-function getIncompleteServices(limit = 5) {
-    return services
-        .filter(s => s.status !== 'completed')
-        .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-        .slice(0, limit);
+function searchServices(query) {
+    const tbody = document.getElementById('serviceTableBody');
+    if (!tbody) return;
+    
+    const rows = tbody.querySelectorAll('tr');
+    
+    rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        if (text.includes(query.toLowerCase())) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
 }
 
 /**
@@ -594,6 +635,16 @@ function getServiceStats() {
 }
 
 /**
+ * Get incomplete services
+ */
+function getIncompleteServices(limit = 5) {
+    return services
+        .filter(s => s.status !== 'completed')
+        .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+        .slice(0, limit);
+}
+
+/**
  * Filter services by date range
  */
 function filterServicesByDateRange(fromDate, toDate) {
@@ -617,40 +668,16 @@ function filterServicesByMonth(month, year) {
 }
 
 /**
- * Get services by customer
+ * Render service table with updated action buttons
  */
-function getServicesByCustomer(customerId) {
-    return services.filter(service => service.customerId === customerId);
-}
-
-/**
- * Search services
- */
-function searchServices(query) {
-    const tbody = document.getElementById('serviceTableBody');
-    if (!tbody) return;
-    
-    const rows = tbody.querySelectorAll('tr');
-    
-    rows.forEach(row => {
-        const text = row.textContent.toLowerCase();
-        if (text.includes(query.toLowerCase())) {
-            row.style.display = '';
-        } else {
-            row.style.display = 'none';
-        }
-    });
-}
-
-/**
- * Render service table
- */
-
 function renderServiceTable() {
     const tbody = document.getElementById('serviceTableBody');
     if (!tbody) return;
     
     tbody.innerHTML = '';
+    
+    const currentUser = AuthModule.getCurrentUser();
+    const isStaff = currentUser && currentUser.role === 'staff';
     
     // Sort services by date (newest first)
     const sortedServices = services.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
@@ -658,47 +685,49 @@ function renderServiceTable() {
     sortedServices.forEach((service, index) => {
         const row = document.createElement('tr');
         
-        // Create action buttons based on status
+        // Create action buttons based on status and user role
         let actionButtons = '';
         if (service.status === 'pending') {
             actionButtons = `
-                <button class="btn btn-sm btn-success" onclick="updateServiceStatus(${service.id}, 'in-progress')">Start</button>
-                <button class="btn btn-sm" onclick="updateServiceStatus(${service.id}, 'on-hold')">Hold</button>
+                <button class="btn" onclick="updateServiceStatus(${service.id}, 'in-progress')">Start</button>
+                <button class="btn" onclick="updateServiceStatus(${service.id}, 'on-hold')">Hold</button>
             `;
         } else if (service.status === 'in-progress') {
             actionButtons = `
-                <button class="btn btn-sm btn-success" onclick="updateServiceStatus(${service.id}, 'completed')">Complete</button>
-                <button class="btn btn-sm" onclick="updateServiceStatus(${service.id}, 'on-hold')">Hold</button>
+                <button class="btn btn-success" onclick="updateServiceStatus(${service.id}, 'completed')">Complete</button>
+                <button class="btn" onclick="updateServiceStatus(${service.id}, 'on-hold')">Hold</button>
             `;
         } else if (service.status === 'on-hold') {
             actionButtons = `
-                <button class="btn btn-sm btn-success" onclick="updateServiceStatus(${service.id}, 'in-progress')">Resume</button>
+                <button class="btn btn-success" onclick="updateServiceStatus(${service.id}, 'in-progress')">Resume</button>
+            `;
+        }
+        
+        // Add edit/delete buttons only for non-staff users
+        if (!isStaff) {
+            actionButtons += `
+                <button class="btn" onclick="editService(${service.id})" 
+                    ${!AuthModule.hasPermission('service') ? 'disabled' : ''}>Edit</button>
+                <button class="btn btn-danger" onclick="confirmTransaction('Are you sure you want to delete this service request?', () => deleteService(${service.id}))" 
+                    ${!AuthModule.hasPermission('service') ? 'disabled' : ''}>Delete</button>
             `;
         }
         
         // Add invoice view buttons
         const hasAcknowledgement = service.acknowledgementGenerated;
-        
         const hasCompletionInvoice = window.InvoiceModule && 
             InvoiceModule.getInvoicesForTransaction(service.id, 'service')
                 .some(inv => inv.type === 'Service Completion');
         
-        actionButtons += `
-            <button class="btn btn-sm" onclick="editService(${service.id})" 
-                ${!AuthModule.hasPermission('service') ? 'disabled' : ''}>Edit</button>
-            <button class="btn btn-sm btn-danger" onclick="confirmTransaction('Are you sure you want to delete this service request?', () => deleteService(${service.id}))" 
-                ${!AuthModule.hasPermission('service') ? 'disabled' : ''}>Delete</button>
-        `;
-        
         if (hasAcknowledgement) {
             actionButtons += `
-                <button class="btn btn-sm btn-success" onclick="viewServiceAcknowledgement(${service.id})" title="View Acknowledgement">Receipt</button>
+                <button class="btn btn-success" onclick="viewServiceAcknowledgement(${service.id})" title="View Acknowledgement">Receipt</button>
             `;
         }
         
         if (hasCompletionInvoice) {
             actionButtons += `
-                <button class="btn btn-sm btn-success" onclick="viewServiceCompletionInvoice(${service.id})" title="View Completion Invoice">Invoice</button>
+                <button class="btn btn-success" onclick="viewServiceCompletionInvoice(${service.id})" title="View Completion Invoice">Invoice</button>
             `;
         }
         
@@ -737,14 +766,6 @@ function renderServiceTable() {
 }
 
 /**
- * Export services data (placeholder)
- */
-function exportServices(format = 'csv') {
-    Utils.showNotification(`Export to ${format.toUpperCase()} functionality coming soon!`);
-    // TODO: Implement export functionality
-}
-
-/**
  * Initialize service module
  */
 function initializeServices() {
@@ -752,7 +773,9 @@ function initializeServices() {
     console.log('Service module initialized');
 }
 
-// Load modal template for services
+/**
+ * Load modal template for services
+ */
 function loadServiceModal() {
     const modalHtml = `
         <!-- New Service Modal -->
@@ -849,43 +872,13 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 100);
 });
 
-// Export functions for global use
-window.ServiceModule = {
-    openNewServiceModal,
-    addNewService,
-    updateServiceStatus,
-    editService,
-    updateService,
-    showServiceCompletionModal,
-    completeService,
-    deleteService,
-    addServiceNote,
-    setEstimatedDelivery,
-    getServiceById,
-    getPendingServices,
-    getIncompleteServices,
-    getServicesByStatus,
-    getServiceStats,
-    getServicesByCustomer,
-    filterServicesByDateRange,
-    filterServicesByMonth,
-    searchServices,
-    renderServiceTable,
-    exportServices,
-    initializeServices,
-    viewServiceAcknowledgement,
-    viewServiceCompletionInvoice,
-    services // For access by other modules
-};
+// Make preview function globally available
+window.previewCompletionImage = previewCompletionImage;
 
-// Make functions globally available
-window.closeEditServiceModal = function() {
-    const modal = document.getElementById('editServiceModal');
-    if (modal) {
-        modal.remove();
-    }
-};
+// Make close function globally available
+window.closeEditServiceModal = closeEditServiceModal;
 
+// Make view functions globally available
 window.viewServiceAcknowledgement = function(serviceId) {
     if (window.ServiceModule) {
         ServiceModule.viewServiceAcknowledgement(serviceId);
@@ -898,8 +891,24 @@ window.viewServiceCompletionInvoice = function(serviceId) {
     }
 };
 
-window.searchServices = function(query) {
-    if (window.ServiceModule) {
-        ServiceModule.searchServices(query);
-    }
+// Export functions for global use
+window.ServiceModule = {
+    openNewServiceModal,
+    addNewService,
+    updateServiceStatus,
+    editService,
+    updateService,
+    showServiceCompletionModal,
+    completeService,
+    deleteService,
+    viewServiceAcknowledgement,
+    viewServiceCompletionInvoice,
+    searchServices,
+    renderServiceTable,
+    getServiceStats,
+    getIncompleteServices,
+    filterServicesByDateRange,
+    filterServicesByMonth,
+    initializeServices,
+    services // For access by other modules
 };
