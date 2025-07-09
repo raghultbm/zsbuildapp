@@ -645,6 +645,7 @@ function searchServices(query) {
 /**
  * Render service table
  */
+
 function renderServiceTable() {
     const tbody = document.getElementById('serviceTableBody');
     if (!tbody) return;
@@ -661,17 +662,17 @@ function renderServiceTable() {
         let actionButtons = '';
         if (service.status === 'pending') {
             actionButtons = `
-                <button class="btn btn-success" onclick="updateServiceStatus(${service.id}, 'in-progress')">Start</button>
-                <button class="btn" onclick="updateServiceStatus(${service.id}, 'on-hold')">Hold</button>
+                <button class="btn btn-sm btn-success" onclick="updateServiceStatus(${service.id}, 'in-progress')">Start</button>
+                <button class="btn btn-sm" onclick="updateServiceStatus(${service.id}, 'on-hold')">Hold</button>
             `;
         } else if (service.status === 'in-progress') {
             actionButtons = `
-                <button class="btn btn-success" onclick="updateServiceStatus(${service.id}, 'completed')">Complete</button>
-                <button class="btn" onclick="updateServiceStatus(${service.id}, 'on-hold')">Hold</button>
+                <button class="btn btn-sm btn-success" onclick="updateServiceStatus(${service.id}, 'completed')">Complete</button>
+                <button class="btn btn-sm" onclick="updateServiceStatus(${service.id}, 'on-hold')">Hold</button>
             `;
         } else if (service.status === 'on-hold') {
             actionButtons = `
-                <button class="btn btn-success" onclick="updateServiceStatus(${service.id}, 'in-progress')">Resume</button>
+                <button class="btn btn-sm btn-success" onclick="updateServiceStatus(${service.id}, 'in-progress')">Resume</button>
             `;
         }
         
@@ -683,29 +684,36 @@ function renderServiceTable() {
                 .some(inv => inv.type === 'Service Completion');
         
         actionButtons += `
-            <button class="btn" onclick="editService(${service.id})" 
+            <button class="btn btn-sm" onclick="editService(${service.id})" 
                 ${!AuthModule.hasPermission('service') ? 'disabled' : ''}>Edit</button>
-            <button class="btn btn-danger" onclick="confirmTransaction('Are you sure you want to delete this service request?', () => deleteService(${service.id}))" 
+            <button class="btn btn-sm btn-danger" onclick="confirmTransaction('Are you sure you want to delete this service request?', () => deleteService(${service.id}))" 
                 ${!AuthModule.hasPermission('service') ? 'disabled' : ''}>Delete</button>
         `;
         
         if (hasAcknowledgement) {
             actionButtons += `
-                <button class="btn btn-success" onclick="viewServiceAcknowledgement(${service.id})" title="View Acknowledgement">Receipt</button>
+                <button class="btn btn-sm btn-success" onclick="viewServiceAcknowledgement(${service.id})" title="View Acknowledgement">Receipt</button>
             `;
         }
         
         if (hasCompletionInvoice) {
             actionButtons += `
-                <button class="btn btn-success" onclick="viewServiceCompletionInvoice(${service.id})" title="View Completion Invoice">Invoice</button>
+                <button class="btn btn-sm btn-success" onclick="viewServiceCompletionInvoice(${service.id})" title="View Completion Invoice">Invoice</button>
             `;
         }
+        
+        // Get customer mobile number
+        const customer = window.CustomerModule ? CustomerModule.getCustomerById(service.customerId) : null;
+        const customerMobile = customer ? customer.phone : 'N/A';
         
         row.innerHTML = `
             <td class="serial-number">${index + 1}</td>
             <td>${Utils.sanitizeHtml(service.date)}</td>
             <td>${Utils.sanitizeHtml(service.time)}</td>
-            <td>${Utils.sanitizeHtml(service.customerName)}</td>
+            <td class="customer-info">
+                <div class="customer-name">${Utils.sanitizeHtml(service.customerName)}</div>
+                <div class="customer-mobile">${Utils.sanitizeHtml(customerMobile)}</div>
+            </td>
             <td>
                 <strong>${Utils.sanitizeHtml(service.watchName)}</strong><br>
                 <small>${Utils.sanitizeHtml(service.brand)} ${Utils.sanitizeHtml(service.model)}</small>

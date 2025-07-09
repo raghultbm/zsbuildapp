@@ -495,17 +495,24 @@ function renderInvoiceTable() {
         
         const statusClass = invoice.status === 'generated' ? 'completed' : 'pending';
         
+        // Get customer mobile number
+        const customer = window.CustomerModule ? CustomerModule.getCustomerById(invoice.customerId) : null;
+        const customerMobile = customer ? customer.phone : 'N/A';
+        
         row.innerHTML = `
             <td class="serial-number">${index + 1}</td>
             <td><strong>${Utils.sanitizeHtml(invoice.invoiceNo)}</strong></td>
             <td><span class="status ${invoice.type.toLowerCase().replace(' ', '-')}">${Utils.sanitizeHtml(invoice.type)}</span></td>
             <td>${Utils.sanitizeHtml(invoice.date)}</td>
-            <td>${Utils.sanitizeHtml(invoice.customerName)}</td>
+            <td class="customer-info">
+                <div class="customer-name">${Utils.sanitizeHtml(invoice.customerName)}</div>
+                <div class="customer-mobile">${Utils.sanitizeHtml(customerMobile)}</div>
+            </td>
             <td>${Utils.sanitizeHtml(details)}</td>
             <td>${invoice.amount > 0 ? Utils.formatCurrency(invoice.amount) : '-'}</td>
             <td><span class="status ${statusClass}">${Utils.sanitizeHtml(invoice.status)}</span></td>
             <td>
-                <button class="btn" onclick="viewInvoice(${invoice.id})" title="View Invoice">View</button>
+                <button class="btn btn-sm" onclick="viewInvoice(${invoice.id})" title="View Invoice">View</button>
             </td>
         `;
         tbody.appendChild(row);

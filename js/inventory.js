@@ -1,10 +1,10 @@
-// ZEDSON WATCHCRAFT - Inventory Management Module (Updated with Type Field)
+// ZEDSON WATCHCRAFT - Inventory Management Module (Updated with Outlet Field)
 
 /**
  * Inventory and Watch Management System
  */
 
-// Watch inventory data - Updated with TYPE field
+// Watch inventory data - Updated with OUTLET field
 let watches = [
     { 
         id: 1, 
@@ -15,6 +15,7 @@ let watches = [
         size: "40mm",
         price: 850000, 
         quantity: 2, 
+        outlet: "Semmancheri",
         description: "Luxury diving watch", 
         status: "available" 
     },
@@ -27,6 +28,7 @@ let watches = [
         size: "42mm",
         price: 450000, 
         quantity: 1, 
+        outlet: "Navalur",
         description: "Professional chronograph", 
         status: "available" 
     },
@@ -39,6 +41,7 @@ let watches = [
         size: "44mm",
         price: 15000, 
         quantity: 5, 
+        outlet: "Padur",
         description: "Sports watch", 
         status: "available" 
     }
@@ -104,10 +107,11 @@ function addNewWatch(event) {
     const size = document.getElementById('watchSize').value.trim();
     const price = parseFloat(document.getElementById('watchPrice').value);
     const quantity = parseInt(document.getElementById('watchQuantity').value);
+    const outlet = document.getElementById('watchOutlet').value;
     const description = document.getElementById('watchDescription').value.trim();
     
     // Validate input
-    if (!code || !type || !brand || !model || !size || !price || !quantity) {
+    if (!code || !type || !brand || !model || !size || !price || !quantity || !outlet) {
         Utils.showNotification('Please fill in all required fields');
         return;
     }
@@ -138,6 +142,7 @@ function addNewWatch(event) {
         size: size,
         price: price,
         quantity: quantity,
+        outlet: outlet,
         description: description,
         status: 'available',
         addedDate: Utils.getCurrentTimestamp(),
@@ -258,7 +263,7 @@ function searchWatches(query) {
 }
 
 /**
- * Render watch table with S.No, Type and Size columns
+ * Render watch table with S.No, Type, Size and Outlet columns
  */
 function renderWatchTable() {
     const tbody = document.getElementById('watchTableBody');
@@ -272,7 +277,7 @@ function renderWatchTable() {
     
     watches.forEach((watch, index) => {
         const row = document.createElement('tr');
-        // Creating 10 columns to match the header: S.No, Code, Type, Brand, Model, Size, Price, Quantity, Status, Actions
+        // Creating 11 columns to match the header: S.No, Code, Type, Brand, Model, Size, Price, Quantity, Outlet, Status, Actions
         row.innerHTML = `
             <td class="serial-number">${index + 1}</td>
             <td><strong>${Utils.sanitizeHtml(watch.code)}</strong></td>
@@ -282,13 +287,14 @@ function renderWatchTable() {
             <td>${Utils.sanitizeHtml(watch.size)}</td>
             <td>${Utils.formatCurrency(watch.price)}</td>
             <td>${watch.quantity}</td>
+            <td><span class="status in-progress">${Utils.sanitizeHtml(watch.outlet)}</span></td>
             <td><span class="status ${watch.status}">${watch.status}</span></td>
             <td>
-                <button class="btn" onclick="editWatch(${watch.id})" 
+                <button class="btn btn-sm" onclick="editWatch(${watch.id})" 
                     ${!AuthModule.hasPermission('inventory') ? 'disabled' : ''}>
                     Edit
                 </button>
-                <button class="btn btn-danger" onclick="deleteWatch(${watch.id})" 
+                <button class="btn btn-sm btn-danger" onclick="deleteWatch(${watch.id})" 
                     ${!AuthModule.hasPermission('inventory') ? 'disabled' : ''}>
                     Delete
                 </button>
@@ -297,7 +303,7 @@ function renderWatchTable() {
         tbody.appendChild(row);
     });
     
-    console.log('Watch table rendered successfully with Type column');
+    console.log('Watch table rendered successfully with Outlet column');
 }
 
 /**
@@ -310,12 +316,23 @@ function getInventoryStats() {
     const totalValue = watches.reduce((sum, w) => sum + (w.price * w.quantity), 0);
     const lowStockWatches = watches.filter(w => w.quantity <= 2 && w.quantity > 0).length;
     
+    // Statistics by outlet
+    const outletStats = {};
+    watches.forEach(w => {
+        if (!outletStats[w.outlet]) {
+            outletStats[w.outlet] = { count: 0, value: 0 };
+        }
+        outletStats[w.outlet].count++;
+        outletStats[w.outlet].value += (w.price * w.quantity);
+    });
+    
     return {
         totalWatches,
         availableWatches,
         soldWatches,
         totalValue,
-        lowStockWatches
+        lowStockWatches,
+        outletStats
     };
 }
 
@@ -334,7 +351,7 @@ function editWatch(watchId) {
         return;
     }
 
-    // Create edit modal with Type field
+    // Create edit modal with Type and Outlet fields
     const editModal = document.createElement('div');
     editModal.className = 'modal';
     editModal.id = 'editWatchModal';
@@ -380,9 +397,19 @@ function editWatch(watchId) {
                         <input type="number" id="editWatchPrice" value="${watch.price}" required min="0" step="0.01">
                     </div>
                 </div>
-                <div class="form-group">
-                    <label>Quantity:</label>
-                    <input type="number" id="editWatchQuantity" value="${watch.quantity}" required min="0">
+                <div class="grid grid-2">
+                    <div class="form-group">
+                        <label>Quantity:</label>
+                        <input type="number" id="editWatchQuantity" value="${watch.quantity}" required min="0">
+                    </div>
+                    <div class="form-group">
+                        <label>Outlet:</label>
+                        <select id="editWatchOutlet" required>
+                            <option value="Semmancheri" ${watch.outlet === 'Semmancheri' ? 'selected' : ''}>Semmancheri</option>
+                            <option value="Navalur" ${watch.outlet === 'Navalur' ? 'selected' : ''}>Navalur</option>
+                            <option value="Padur" ${watch.outlet === 'Padur' ? 'selected' : ''}>Padur</option>
+                        </select>
+                    </div>
                 </div>
                 <div class="form-group">
                     <label>Description:</label>
@@ -416,10 +443,11 @@ function updateWatch(event, watchId) {
     const size = document.getElementById('editWatchSize').value.trim();
     const price = parseFloat(document.getElementById('editWatchPrice').value);
     const quantity = parseInt(document.getElementById('editWatchQuantity').value);
+    const outlet = document.getElementById('editWatchOutlet').value;
     const description = document.getElementById('editWatchDescription').value.trim();
 
     // Validate input
-    if (!code || !type || !brand || !model || !size || !price || quantity < 0) {
+    if (!code || !type || !brand || !model || !size || !price || quantity < 0 || !outlet) {
         Utils.showNotification('Please fill in all required fields');
         return;
     }
@@ -438,6 +466,7 @@ function updateWatch(event, watchId) {
     watch.size = size;
     watch.price = price;
     watch.quantity = quantity;
+    watch.outlet = outlet;
     watch.description = description;
     watch.status = quantity > 0 ? 'available' : 'sold';
 
@@ -463,7 +492,9 @@ function initializeInventory() {
     console.log('Inventory module initialized');
 }
 
-// Load modal template for inventory with Type field
+/**
+ * Load modal template for inventory with Type and Outlet fields
+ */
 function loadInventoryModal() {
     const modalHtml = `
         <!-- Add Watch Modal -->
@@ -509,9 +540,20 @@ function loadInventoryModal() {
                             <input type="number" id="watchPrice" required min="0" step="0.01">
                         </div>
                     </div>
-                    <div class="form-group">
-                        <label>Quantity:</label>
-                        <input type="number" id="watchQuantity" value="1" required min="1">
+                    <div class="grid grid-2">
+                        <div class="form-group">
+                            <label>Quantity:</label>
+                            <input type="number" id="watchQuantity" value="1" required min="1">
+                        </div>
+                        <div class="form-group">
+                            <label>Outlet:</label>
+                            <select id="watchOutlet" required>
+                                <option value="">Select Outlet</option>
+                                <option value="Semmancheri">Semmancheri</option>
+                                <option value="Navalur">Navalur</option>
+                                <option value="Padur">Padur</option>
+                            </select>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label>Description:</label>

@@ -134,6 +134,7 @@
                                 <th>Size</th>
                                 <th>Price</th>
                                 <th>Quantity</th>
+                                <th>Outlet</th>
                                 <th>Status</th>
                                 <th>Actions</th>
                             </tr>
@@ -155,14 +156,14 @@
                     <table class="table" id="salesTable">
                         <thead>
                             <tr>
-                                <th style="width: 60px;">S.No</th>
-                                <th style="width: 100px;">Date</th>
-                                <th style="width: 80px;">Time</th>
-                                <th style="width: 150px;">Customer</th>
-                                <th style="width: 200px;">Item</th>
-                                <th style="width: 120px;">Price</th>
-                                <th style="width: 120px;">Payment Method</th>
-                                <th style="width: 140px;">Actions</th>
+                                <th style="width: 40px;">S.No</th>
+                                <th style="width: 80px;">Date</th>
+                                <th style="width: 60px;">Time</th>
+                                <th style="width: 140px;">Customer</th>
+                                <th style="width: 180px;">Item</th>
+                                <th style="width: 100px;">Price</th>
+                                <th style="width: 100px;">Payment Method</th>
+                                <th style="width: 160px;">Actions</th>
                             </tr>
                         </thead>
                         <tbody id="salesTableBody">
@@ -182,16 +183,16 @@
                     <table class="table" id="serviceTable">
                         <thead>
                             <tr>
-                                <th style="width: 60px;">S.No</th>
-                                <th style="width: 100px;">Date</th>
-                                <th style="width: 80px;">Time</th>
+                                <th style="width: 40px;">S.No</th>
+                                <th style="width: 80px;">Date</th>
+                                <th style="width: 60px;">Time</th>
                                 <th style="width: 120px;">Customer</th>
-                                <th style="width: 150px;">Watch Details</th>
-                                <th style="width: 150px;">Specifications</th>
-                                <th style="width: 200px;">Issue</th>
-                                <th style="width: 100px;">Status</th>
-                                <th style="width: 100px;">Cost</th>
-                                <th style="width: 260px;">Actions</th>
+                                <th style="width: 130px;">Watch Details</th>
+                                <th style="width: 130px;">Specifications</th>
+                                <th style="width: 160px;">Issue</th>
+                                <th style="width: 80px;">Status</th>
+                                <th style="width: 80px;">Cost</th>
+                                <th style="width: 280px;">Actions</th>
                             </tr>
                         </thead>
                         <tbody id="serviceTableBody">
@@ -215,15 +216,15 @@
                     <table class="table" id="invoiceTable">
                         <thead>
                             <tr>
-                                <th style="width: 60px;">S.No</th>
-                                <th style="width: 120px;">Invoice No</th>
-                                <th style="width: 100px;">Type</th>
-                                <th style="width: 100px;">Date</th>
-                                <th style="width: 150px;">Customer</th>
-                                <th style="width: 200px;">Details</th>
-                                <th style="width: 120px;">Amount</th>
-                                <th style="width: 100px;">Status</th>
-                                <th style="width: 120px;">Actions</th>
+                                <th style="width: 40px;">S.No</th>
+                                <th style="width: 100px;">Invoice No</th>
+                                <th style="width: 80px;">Type</th>
+                                <th style="width: 80px;">Date</th>
+                                <th style="width: 130px;">Customer</th>
+                                <th style="width: 180px;">Details</th>
+                                <th style="width: 100px;">Amount</th>
+                                <th style="width: 80px;">Status</th>
+                                <th style="width: 100px;">Actions</th>
                             </tr>
                         </thead>
                         <tbody id="invoiceTableBody">
@@ -285,7 +286,7 @@
         </div>
     </div>
 
-    <!-- Combined Revenue Analytics Modal -->
+    <!-- UPDATED Revenue Analytics Modal -->
     <div id="revenueAnalyticsModal" class="modal">
         <div class="modal-content">
             <span class="close" onclick="closeModal('revenueAnalyticsModal')">&times;</span>
@@ -298,6 +299,8 @@
                             <option value="all">All Revenue</option>
                             <option value="dateRange">Date Range</option>
                             <option value="monthly">Monthly</option>
+                            <option value="salesOnly">Sales Only</option>
+                            <option value="servicesOnly">Services Only</option>
                         </select>
                     </div>
                     <div class="form-group" id="revenueYearGroup">
@@ -334,122 +337,8 @@
                 </div>
                 <button class="btn" onclick="applyRevenueFilter()">Apply Filter</button>
                 <button class="btn btn-danger" onclick="resetRevenueFilter()">Reset</button>
-                <button class="btn btn-success" onclick="openSalesFilter()">Sales Only</button>
-                <button class="btn btn-success" onclick="openServiceFilter()">Services Only</button>
             </div>
             <div id="revenueFilterResults">
-                <!-- Results will be displayed here -->
-            </div>
-        </div>
-    </div>
-
-    <!-- Sales Filter Modal -->
-    <div id="salesFilterModal" class="modal">
-        <div class="modal-content">
-            <span class="close" onclick="closeModal('salesFilterModal')">&times;</span>
-            <h2>Sales Analytics</h2>
-            <div class="filter-controls">
-                <div class="grid grid-2">
-                    <div class="form-group">
-                        <label>Filter Type:</label>
-                        <select id="salesFilterType" onchange="toggleSalesFilterInputs()">
-                            <option value="all">All Sales</option>
-                            <option value="dateRange">Date Range</option>
-                            <option value="monthly">Monthly</option>
-                        </select>
-                    </div>
-                    <div class="form-group" id="salesYearGroup">
-                        <label>Year:</label>
-                        <select id="salesYear"></select>
-                    </div>
-                </div>
-                <div class="grid grid-2" id="salesDateRangeInputs" style="display: none;">
-                    <div class="form-group">
-                        <label>From Date:</label>
-                        <input type="date" id="salesFromDate">
-                    </div>
-                    <div class="form-group">
-                        <label>To Date:</label>
-                        <input type="date" id="salesToDate">
-                    </div>
-                </div>
-                <div class="form-group" id="salesMonthGroup" style="display: none;">
-                    <label>Month:</label>
-                    <select id="salesMonth">
-                        <option value="0">January</option>
-                        <option value="1">February</option>
-                        <option value="2">March</option>
-                        <option value="3">April</option>
-                        <option value="4">May</option>
-                        <option value="5">June</option>
-                        <option value="6">July</option>
-                        <option value="7">August</option>
-                        <option value="8">September</option>
-                        <option value="9">October</option>
-                        <option value="10">November</option>
-                        <option value="11">December</option>
-                    </select>
-                </div>
-                <button class="btn" onclick="applySalesFilter()">Apply Filter</button>
-                <button class="btn btn-danger" onclick="resetSalesFilter()">Reset</button>
-            </div>
-            <div id="salesFilterResults">
-                <!-- Results will be displayed here -->
-            </div>
-        </div>
-    </div>
-
-    <!-- Service Filter Modal -->
-    <div id="serviceFilterModal" class="modal">
-        <div class="modal-content">
-            <span class="close" onclick="closeModal('serviceFilterModal')">&times;</span>
-            <h2>Service Analytics</h2>
-            <div class="filter-controls">
-                <div class="grid grid-2">
-                    <div class="form-group">
-                        <label>Filter Type:</label>
-                        <select id="serviceFilterType" onchange="toggleServiceFilterInputs()">
-                            <option value="all">All Services</option>
-                            <option value="dateRange">Date Range</option>
-                            <option value="monthly">Monthly</option>
-                        </select>
-                    </div>
-                    <div class="form-group" id="serviceYearGroup">
-                        <label>Year:</label>
-                        <select id="serviceYear"></select>
-                    </div>
-                </div>
-                <div class="grid grid-2" id="serviceDateRangeInputs" style="display: none;">
-                    <div class="form-group">
-                        <label>From Date:</label>
-                        <input type="date" id="serviceFromDate">
-                    </div>
-                    <div class="form-group">
-                        <label>To Date:</label>
-                        <input type="date" id="serviceToDate">
-                    </div>
-                </div>
-                <div class="form-group" id="serviceMonthGroup" style="display: none;">
-                    <label>Month:</label>
-                    <select id="serviceMonth">
-                        <option value="0">January</option>
-                        <option value="1">February</option>
-                        <option value="2">March</option>
-                        <option value="3">April</option>
-                        <option value="4">May</option>
-                        <option value="5">June</option>
-                        <option value="6">July</option>
-                        <option value="7">August</option>
-                        <option value="8">September</option>
-                        <option value="9">October</option>
-                        <option value="10">November</option>
-                        <option value="11">December</option>
-                    </select>
-                </div>
-                <button class="btn" onclick="applyServiceFilter()">Apply Filter</button>
-                <button class="btn btn-danger" onclick="resetServiceFilter()">Reset</button>
-            </div>
-            <div id="serviceFilterResults">
                 <!-- Results will be displayed here -->
             </div>
         </div>
@@ -473,12 +362,14 @@
     <script src="js/utils.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/inventory.js"></script>
-    <script src="js/sales.js"></script>
+    <script src="js/sales-core.js"></script>
+    <script src="js/sales-extended.js"></script>
     <script src="js/service.js"></script>
     <script src="js/customers.js"></script>
     <script src="js/invoice-templates.js"></script>
     <script src="js/invoices.js"></script>
-    <script src="js/app.js"></script>
+    <script src="js/app-core.js"></script>
+    <script src="js/app-extended.js"></script>
 
     <script type="module">
   // Import the functions you need from the SDKs you need
