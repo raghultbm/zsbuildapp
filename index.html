@@ -32,20 +32,32 @@
                 </div>
                 <button type="submit" class="login-btn">Login</button>
             </form>
-            
-            <div style="margin-top: 20px; font-size: 12px; color: #666;">
-                <p><strong>Demo Accounts:</strong></p>
-                <p>Admin: admin / admin123</p>
-                <p>Owner: owner / owner123</p>
-                <p>Staff: staff / staff123</p>
-            </div>
+        </div>
+    </div>
+
+    <!-- First Login Password Setup Modal -->
+    <div id="firstLoginModal" class="modal" style="z-index: 3000;">
+        <div class="modal-content">
+            <h2>First Time Login - Set Your Password</h2>
+            <p>Please set your new password for security purposes.</p>
+            <form onsubmit="handleFirstTimePasswordSetup(event)">
+                <div class="form-group">
+                    <label>New Password:</label>
+                    <input type="password" id="newPasswordSetup" required placeholder="Enter new password" minlength="6">
+                </div>
+                <div class="form-group">
+                    <label>Confirm Password:</label>
+                    <input type="password" id="confirmPasswordSetup" required placeholder="Confirm new password" minlength="6">
+                </div>
+                <button type="submit" class="btn">Set Password</button>
+            </form>
         </div>
     </div>
 
     <!-- Main Application -->
     <div id="mainApp" class="app-container">
         <div class="container">
-            <!-- Header with Logo and Navigation -->
+            <!-- Updated Header with Logo on Left and Navigation on Right -->
             <div class="header">
                 <!-- User Info Bar -->
                 <div class="user-info">
@@ -54,25 +66,36 @@
                     <button class="logout-btn" onclick="logout()">Logout</button>
                 </div>
                 
-                <div class="logo-container">
-                    <img src="assets/zedson-logo.png" alt="ZEDSON WATCHCRAFT" class="header-logo-image-large">
-                    <!-- Fallback to original design if image fails to load -->
-                    <div class="logo-circle" style="display: none;">
-                        <div class="logo-watch"></div>
+                <!-- New Header Layout: Logo Left, Navigation Right -->
+                <div class="header-main">
+                    <!-- Logo Section (Left Side) -->
+                    <div class="logo-section">
+                        <img src="assets/zedson-logo.png" alt="ZEDSON WATCHCRAFT" class="header-logo-main">
+                        <!-- Fallback to original design if image fails to load -->
+                        <div class="logo-fallback" style="display: none;">
+                            <div class="logo-circle-main">
+                                <div class="logo-watch"></div>
+                            </div>
+                            <div class="logo-text">
+                                <h1>ZEDSON</h1>
+                                <div class="subtitle">WATCHCRAFT</div>
+                            </div>
+                        </div>
                     </div>
-                    <div style="display: none;">
-                        <h1>ZEDSON</h1>
-                        <div class="subtitle">WATCHCRAFT</div>
+                    
+                    <!-- Navigation Section (Right Side) -->
+                    <div class="nav-section">
+                        <div class="nav" id="mainNavigation">
+                            <button class="nav-btn active" onclick="showSection('dashboard', this)">Dashboard</button>
+                            <button class="nav-btn" onclick="showSection('customers', this)">Customers</button>
+                            <button class="nav-btn" onclick="showSection('inventory', this)">Inventory</button>
+                            <button class="nav-btn" onclick="showSection('sales', this)">Sales</button>
+                            <button class="nav-btn" onclick="showSection('service', this)">Service</button>
+                            <button class="nav-btn" onclick="showSection('expenses', this)">Expenses</button>
+                            <button class="nav-btn" onclick="showSection('invoices', this)">Invoices</button>
+                            <button class="nav-btn" id="userManagementBtn" onclick="showSection('users', this)" style="display: none;">User Management</button>
+                        </div>
                     </div>
-                </div>
-                <div class="nav" id="mainNavigation">
-                    <button class="nav-btn active" onclick="showSection('dashboard', this)">Dashboard</button>
-                    <button class="nav-btn" onclick="showSection('customers', this)">Customers</button>
-                    <button class="nav-btn" onclick="showSection('inventory', this)">Inventory</button>
-                    <button class="nav-btn" onclick="showSection('sales', this)">Sales</button>
-                    <button class="nav-btn" onclick="showSection('service', this)">Service</button>
-                    <button class="nav-btn" onclick="showSection('invoices', this)">Invoices</button>
-                    <button class="nav-btn" id="userManagementBtn" onclick="showSection('users', this)" style="display: none;">User Management</button>
                 </div>
             </div>
 
@@ -201,6 +224,30 @@
                     </table>
                 </div>
 
+                <!-- Expenses Section -->
+                <div id="expenses" class="section">
+                    <h2>Expense Management</h2>
+                    <div style="margin-bottom: 20px;">
+                        <button class="btn" onclick="openAddExpenseModal()">Add New Expense</button>
+                        <input type="text" class="search-box" placeholder="Search expenses..." 
+                               onkeyup="searchExpenses(this.value)" style="width: 300px; display: inline-block; margin-left: 20px;">
+                    </div>
+                    <table class="table" id="expenseTable">
+                        <thead>
+                            <tr>
+                                <th style="width: 40px;">S.No</th>
+                                <th style="width: 120px;">Date</th>
+                                <th style="width: 300px;">Description</th>
+                                <th style="width: 120px;">Amount</th>
+                                <th style="width: 160px;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="expenseTableBody">
+                            <!-- Expense data will be loaded by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+
                 <!-- Invoices Section -->
                 <div id="invoices" class="section">
                     <h2>Invoice Management</h2>
@@ -297,7 +344,7 @@
                     <div class="form-group">
                         <label>Filter Type:</label>
                         <select id="revenueFilterType" onchange="toggleRevenueFilterInputs()">
-                            <option value="all">All Revenue</option>
+                            <option value="all">All Transactions</option>
                             <option value="dateRange">Date Range</option>
                             <option value="monthly">Monthly</option>
                         </select>
@@ -342,6 +389,12 @@
                         <option value="11">December</option>
                     </select>
                 </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="includeExpenses" onchange="applyRevenueFilter()">
+                        Include Expenses (subtract from revenue)
+                    </label>
+                </div>
                 <button class="btn" onclick="applyRevenueFilter()">Apply Filter</button>
                 <button class="btn btn-danger" onclick="resetRevenueFilter()">Reset</button>
             </div>
@@ -373,6 +426,7 @@
     <script src="js/sales-core.js"></script>
     <script src="js/sales-extended.js"></script>
     <script src="js/service.js"></script>
+    <script src="js/expenses.js"></script>
     <script src="js/customers.js"></script>
     <script src="js/invoice-templates.js"></script>
     <script src="js/invoices.js"></script>

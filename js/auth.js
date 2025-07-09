@@ -1,55 +1,49 @@
-// ZEDSON WATCHCRAFT - Authentication Module with Logging and Staff Restrictions
+// ZEDSON WATCHCRAFT - Authentication Module with Password Encryption and First Login
 
 /**
- * Authentication and User Management System with Action Logging
+ * Authentication and User Management System with Encrypted Passwords
  */
 
 // Current logged-in user
 let currentUser = null;
 
-// User database
+// Simple password hashing function (in production, use a proper library like bcrypt)
+function hashPassword(password) {
+    // Simple hash function - in production, use proper encryption
+    let hash = 0;
+    if (password.length === 0) return hash.toString();
+    for (let i = 0; i < password.length; i++) {
+        const char = password.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+    }
+    return Math.abs(hash).toString(36);
+}
+
+// User database with encrypted passwords
 let users = [
     { 
         username: 'admin', 
-        password: 'admin123', 
+        password: hashPassword('admin123'), // Encrypted
         role: 'admin', 
         fullName: 'System Administrator', 
         email: 'admin@zedsonwatchcraft.com', 
         status: 'active', 
         created: '2024-01-01', 
-        lastLogin: 'Today' 
-    },
-    { 
-        username: 'owner', 
-        password: 'owner123', 
-        role: 'owner', 
-        fullName: 'Shop Owner', 
-        email: 'owner@zedsonwatchcraft.com', 
-        status: 'active', 
-        created: '2024-01-01', 
-        lastLogin: 'Yesterday' 
-    },
-    { 
-        username: 'staff', 
-        password: 'staff123', 
-        role: 'staff', 
-        fullName: 'Staff Member', 
-        email: 'staff@zedsonwatchcraft.com', 
-        status: 'active', 
-        created: '2024-01-01', 
-        lastLogin: '2 days ago' 
+        lastLogin: 'Today',
+        firstLogin: false
     }
 ];
 
-// User permissions configuration
+// User permissions configuration - Updated to include expenses
 const permissions = {
-    admin: ['dashboard', 'inventory', 'customers', 'sales', 'service', 'invoices', 'users'],
-    owner: ['dashboard', 'inventory', 'customers', 'sales', 'service', 'invoices'],
-    staff: ['dashboard', 'inventory', 'customers', 'sales', 'service', 'invoices']
+    admin: ['dashboard', 'inventory', 'customers', 'sales', 'service', 'expenses', 'invoices', 'users'],
+    owner: ['dashboard', 'inventory', 'customers', 'sales', 'service', 'expenses', 'invoices'],
+    staff: ['dashboard', 'inventory', 'customers', 'sales', 'service', 'expenses', 'invoices']
 };
 
 /**
- * Handle user login
+ * Handle user login with first-time password setup
  */
 function handleLogin(event) {
     event.preventDefault();
@@ -64,49 +58,150 @@ function handleLogin(event) {
     }
     
     // Find user
-    const user = users.find(u => u.username === username && u.password === password);
+    const user = users.find(u => u.username === username);
     
-    if (user && user.status === 'active') {
-        // Successful login
-        currentUser = user;
-        
-        // Log successful login
+    if (!user) {
         if (window.logAuthAction) {
-            logAuthAction(`User logged in successfully`, username, user.role);
+            logAuthAction(`Failed login attempt - user not found`, username);
         }
-        
-        // Update user info display
-        document.getElementById('currentUser').textContent = `Welcome, ${user.fullName}`;
-        document.getElementById('currentUserRole').textContent = user.role.toUpperCase();
-        
-        // Hide login screen and show main app
-        document.getElementById('loginScreen').style.display = 'none';
-        document.getElementById('mainApp').classList.add('logged-in');
-        
-        // Setup navigation based on user role
-        setupNavigation();
-        
-        // Update last login
-        user.lastLogin = 'Just now';
-        
-        // Update user table if admin is logged in
-        if (user.role === 'admin') {
-            updateUserTable();
+        Utils.showNotification('Invalid username or password.');
+        return;
+    }
+
+    if (user.status !== 'active') {
+        if (window.logAuthAction) {
+            logAuthAction(`Failed login attempt - account inactive`, username);
         }
-        
-        // Initialize logging system
-        if (window.LoggingModule) {
-            LoggingModule.initializeLogging();
+        Utils.showNotification('Your account is inactive. Please contact administrator.');
+        return;
+    }
+
+    // Check if this is first login (temporary password)
+    if (user.firstLogin) {
+        // For first login, check against temporary password
+        if (user.tempPassword === password) {
+            // Show first login modal
+            showFirstLoginModal(user);
+            return;
+        } else {
+            if (window.logAuthAction) {
+                logAuthAction(`Failed first login attempt`, username);
+            }
+            Utils.showNotification('Invalid temporary password. Please contact administrator.');
+            return;
         }
-        
-        Utils.showNotification(`Welcome back, ${user.fullName}!`);
+    }
+
+    // Regular login - check encrypted password
+    const hashedPassword = hashPassword(password);
+    if (user.password === hashedPassword) {
+        // Successful login
+        completeLogin(user);
     } else {
         // Log failed login attempt
         if (window.logAuthAction) {
-            logAuthAction(`Failed login attempt`, username);
+            logAuthAction(`Failed login attempt - wrong password`, username);
         }
-        Utils.showNotification('Invalid username or password, or account is inactive.');
+        Utils.showNotification('Invalid username or password.');
     }
+}
+
+/**
+ * Show first login modal for password setup
+ */
+function showFirstLoginModal(user) {
+    currentUser = user; // Set temporarily for password change
+    document.getElementById('firstLoginModal').style.display = 'block';
+    
+    if (window.logAuthAction) {
+        logAuthAction(`First login initiated`, user.username);
+    }
+}
+
+/**
+ * Handle first-time password setup
+ */
+function handleFirstTimePasswordSetup(event) {
+    event.preventDefault();
+    
+    const newPassword = document.getElementById('newPasswordSetup').value;
+    const confirmPassword = document.getElementById('confirmPasswordSetup').value;
+    
+    // Validate passwords
+    if (newPassword.length < 6) {
+        Utils.showNotification('Password must be at least 6 characters long.');
+        return;
+    }
+    
+    if (newPassword !== confirmPassword) {
+        Utils.showNotification('Passwords do not match.');
+        return;
+    }
+    
+    if (!currentUser) {
+        Utils.showNotification('Session error. Please try logging in again.');
+        return;
+    }
+    
+    // Update user password
+    currentUser.password = hashPassword(newPassword);
+    currentUser.firstLogin = false;
+    delete currentUser.tempPassword; // Remove temporary password
+    
+    // Log password setup
+    if (window.logAuthAction) {
+        logAuthAction(`First login password setup completed`, currentUser.username);
+    }
+    
+    // Close modal and complete login
+    document.getElementById('firstLoginModal').style.display = 'none';
+    document.getElementById('newPasswordSetup').value = '';
+    document.getElementById('confirmPasswordSetup').value = '';
+    
+    completeLogin(currentUser);
+    Utils.showNotification('Password set successfully! Welcome to ZEDSON WATCHCRAFT.');
+}
+
+/**
+ * Complete login process
+ */
+function completeLogin(user) {
+    currentUser = user;
+    
+    // Log successful login
+    if (window.logAuthAction) {
+        logAuthAction(`User logged in successfully`, user.username, user.role);
+    }
+    
+    // Update user info display
+    document.getElementById('currentUser').textContent = `Welcome, ${user.fullName}`;
+    document.getElementById('currentUserRole').textContent = user.role.toUpperCase();
+    
+    // Hide login screen and show main app
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('mainApp').classList.add('logged-in');
+    
+    // Setup navigation based on user role
+    setupNavigation();
+    
+    // Update last login
+    user.lastLogin = 'Just now';
+    
+    // Update user table if admin is logged in
+    if (user.role === 'admin') {
+        updateUserTable();
+    }
+    
+    // Initialize logging system
+    if (window.LoggingModule) {
+        LoggingModule.initializeLogging();
+    }
+    
+    // Clear login form
+    document.getElementById('loginUsername').value = '';
+    document.getElementById('loginPassword').value = '';
+    
+    Utils.showNotification(`Welcome back, ${user.fullName}!`);
 }
 
 /**
@@ -205,7 +300,7 @@ function openAddUserModal() {
 }
 
 /**
- * Add new user (Admin only)
+ * Add new user (Admin only) - No password required
  */
 function addNewUser(event) {
     event.preventDefault();
@@ -216,13 +311,12 @@ function addNewUser(event) {
     }
 
     const username = document.getElementById('newUsername').value.trim();
-    const password = document.getElementById('newPassword').value;
     const role = document.getElementById('newUserRole').value;
     const fullName = document.getElementById('newUserFullName').value.trim();
     const email = document.getElementById('newUserEmail').value.trim();
 
     // Validate input
-    if (!username || !password || !role || !fullName || !email) {
+    if (!username || !role || !fullName || !email) {
         Utils.showNotification('Please fill in all required fields.');
         return;
     }
@@ -245,15 +339,20 @@ function addNewUser(event) {
         return;
     }
 
+    // Generate temporary password
+    const tempPassword = generateTempPassword();
+
     const newUser = {
         username: username,
-        password: password,
+        tempPassword: tempPassword, // Temporary password for first login
+        password: null, // Will be set by user on first login
         role: role,
         fullName: fullName,
         email: email,
         status: 'active',
         created: Utils.formatDate(new Date()),
-        lastLogin: 'Never'
+        lastLogin: 'Never',
+        firstLogin: true
     };
 
     users.push(newUser);
@@ -266,11 +365,57 @@ function addNewUser(event) {
     updateUserTable();
     closeModal('addUserModal');
     event.target.reset();
-    Utils.showNotification('User added successfully!');
+    
+    // Show temporary password to admin
+    Utils.showNotification(`User created successfully!\n\nTemporary Login Details:\nUsername: ${username}\nTemporary Password: ${tempPassword}\n\nUser must change password on first login.`);
 }
 
 /**
- * Update user table display
+ * Generate temporary password
+ */
+function generateTempPassword() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let result = '';
+    for (let i = 0; i < 8; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+}
+
+/**
+ * Reset user password (Admin only)
+ */
+function resetUserPassword(username) {
+    if (currentUser.role !== 'admin') {
+        Utils.showNotification('Only administrators can reset passwords.');
+        return;
+    }
+
+    const user = users.find(u => u.username === username);
+    if (!user) {
+        Utils.showNotification('User not found.');
+        return;
+    }
+
+    if (confirm(`Are you sure you want to reset password for user "${username}"?\nThis will generate a new temporary password and require them to set a new password on next login.`)) {
+        const tempPassword = generateTempPassword();
+        
+        user.tempPassword = tempPassword;
+        user.password = null;
+        user.firstLogin = true;
+        
+        // Log password reset
+        if (window.logUserManagementAction) {
+            logUserManagementAction(`Reset password for user: ${username}`, user, username);
+        }
+        
+        updateUserTable();
+        Utils.showNotification(`Password reset successfully!\n\nNew Temporary Login Details:\nUsername: ${username}\nTemporary Password: ${tempPassword}\n\nUser must change password on next login.`);
+    }
+}
+
+/**
+ * Update user table display with reset password button
  */
 function updateUserTable() {
     const tbody = document.getElementById('userTableBody');
@@ -282,6 +427,7 @@ function updateUserTable() {
         const roleClass = user.role === 'admin' ? 'available' : user.role === 'owner' ? 'in-progress' : 'pending';
         const statusClass = user.status === 'active' ? 'completed' : 'pending';
         const canDelete = currentUser.username !== user.username && user.role !== 'admin';
+        const passwordStatus = user.firstLogin ? '<span style="color: #ff6b6b;">Temp Password</span>' : '<span style="color: #28a745;">Set</span>';
         
         tbody.innerHTML += `
             <tr>
@@ -292,8 +438,9 @@ function updateUserTable() {
                 <td>${Utils.sanitizeHtml(user.created)}</td>
                 <td>${Utils.sanitizeHtml(user.lastLogin)}</td>
                 <td>
-                    <button class="btn" onclick="editUser('${user.username}')">Edit</button>
-                    <button class="btn btn-danger" onclick="confirmTransaction('Are you sure you want to delete user ${user.username}?', () => deleteUser('${user.username}'))" 
+                    <button class="btn btn-sm" onclick="editUser('${user.username}')">Edit</button>
+                    <button class="btn btn-sm" onclick="resetUserPassword('${user.username}')" title="Reset Password">Reset PWD</button>
+                    <button class="btn btn-sm btn-danger" onclick="confirmTransaction('Are you sure you want to delete user ${user.username}?', () => deleteUser('${user.username}'))" 
                             ${!canDelete ? 'disabled' : ''}>Delete</button>
                 </td>
             </tr>
@@ -475,6 +622,10 @@ function canEditDelete() {
     return currentUser && currentUser.role !== 'staff';
 }
 
+// Make functions globally available
+window.handleFirstTimePasswordSetup = handleFirstTimePasswordSetup;
+window.resetUserPassword = resetUserPassword;
+
 // Export functions for global use
 window.AuthModule = {
     handleLogin,
@@ -487,6 +638,7 @@ window.AuthModule = {
     editUser,
     updateUser,
     deleteUser,
+    resetUserPassword,
     getCurrentUser,
     isLoggedIn,
     isStaffUser,

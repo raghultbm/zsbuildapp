@@ -5,7 +5,7 @@
  */
 
 /**
- * Create Sales Invoice HTML with logo and updated design
+ * Create Sales Invoice HTML with updated design - removed Invoice Amount, added Discount column, simplified summary
  */
 function createSalesInvoiceHTML(invoice) {
     return `
@@ -27,17 +27,11 @@ function createSalesInvoiceHTML(invoice) {
                 </div>
             </div>
 
-            <!-- Company Info Bar -->
+            <!-- Company Info Bar (removed Invoice Amount) -->
             <div style="background: #f8f9fa; padding: 15px; border-left: 5px solid #ffd700; margin-bottom: 20px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.9em; color: #666;">
-                    <div>
-                        <strong>14B, Northern Street, Greater South Avenue</strong><br>
-                        New York 10001, U.S.A
-                    </div>
-                    <div style="text-align: right;">
-                        <strong>Invoice Amount</strong><br>
-                        <span style="font-size: 1.5em; color: #1a237e; font-weight: bold;">${Utils.formatCurrency(invoice.amount)}</span>
-                    </div>
+                <div style="font-size: 0.9em; color: #666;">
+                    <strong>Shop A2A, No.137/2B, Express Food Street</strong><br>
+                    Semmancheri, Chennai - 600119
                 </div>
             </div>
 
@@ -70,7 +64,7 @@ function createSalesInvoiceHTML(invoice) {
                 </div>
             </div>
 
-            <!-- Items Table -->
+            <!-- Items Table (added Discount column) -->
             <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
                 <thead>
                     <tr style="background: #1a237e; color: white;">
@@ -78,6 +72,7 @@ function createSalesInvoiceHTML(invoice) {
                         <th style="padding: 15px; text-align: left; border: 1px solid #ddd;">Item & Description</th>
                         <th style="padding: 15px; text-align: center; border: 1px solid #ddd;">Qty</th>
                         <th style="padding: 15px; text-align: right; border: 1px solid #ddd;">Rate</th>
+                        <th style="padding: 15px; text-align: right; border: 1px solid #ddd;">Discount</th>
                         <th style="padding: 15px; text-align: right; border: 1px solid #ddd;">Amount</th>
                     </tr>
                 </thead>
@@ -90,23 +85,16 @@ function createSalesInvoiceHTML(invoice) {
                         </td>
                         <td style="padding: 15px; border: 1px solid #ddd; text-align: center;">${invoice.quantity}</td>
                         <td style="padding: 15px; border: 1px solid #ddd; text-align: right;">${Utils.formatCurrency(invoice.price)}</td>
+                        <td style="padding: 15px; border: 1px solid #ddd; text-align: right; color: #dc3545;">${Utils.formatCurrency(invoice.discountAmount || 0)}</td>
                         <td style="padding: 15px; border: 1px solid #ddd; text-align: right; background: #e8f5e8; font-weight: bold; color: #2e7d32;">${Utils.formatCurrency(invoice.amount)}</td>
                     </tr>
                 </tbody>
             </table>
 
-            <!-- Summary Section -->
+            <!-- Summary Section (simplified - only Total) -->
             <div style="display: flex; justify-content: flex-end; margin-bottom: 30px;">
                 <div style="width: 300px;">
                     <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; border: 2px solid #1a237e;">
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #ddd;">
-                            <span>Sub Total:</span>
-                            <span>${Utils.formatCurrency(invoice.price * invoice.quantity)}</span>
-                        </div>
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #ddd;">
-                            <span>Discount:</span>
-                            <span>${Utils.formatCurrency(invoice.discountAmount || 0)}</span>
-                        </div>
                         <div style="display: flex; justify-content: space-between; font-size: 1.2em; font-weight: bold; color: #1a237e;">
                             <span>Total:</span>
                             <span>${Utils.formatCurrency(invoice.amount)}</span>
@@ -119,14 +107,14 @@ function createSalesInvoiceHTML(invoice) {
             <div style="text-align: center; margin-top: 30px; padding: 20px; background: linear-gradient(135deg, #1a237e, #283593); color: white; border-radius: 0 0 10px 10px;">
                 <p style="margin: 5px 0; font-size: 1.1em; font-weight: 600;">Thank you for your business!</p>
                 <p style="margin: 5px 0; font-size: 0.9em;">ZEDSON WATCHCRAFT - Your trusted watch partner</p>
-                <p style="margin: 5px 0; font-size: 0.85em;">Contact: +91-9345667717 | Email: zedsonwatchcraft@gmail.com</p>
+                <p style="margin: 5px 0; font-size: 0.85em;">Contact: +91-9345667717 | 9500661769 | Email: zedsonwatchcraft@gmail.com</p>
             </div>
         </div>
     `;
 }
 
 /**
- * Create Service Completion Invoice HTML with logo and updated design
+ * Create Service Completion Invoice HTML with logo and updated design (unchanged)
  */
 function createServiceCompletionHTML(invoice) {
     return `
@@ -152,8 +140,8 @@ function createServiceCompletionHTML(invoice) {
             <div style="background: #f8f9fa; padding: 15px; border-left: 5px solid #ffd700; margin-bottom: 20px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.9em; color: #666;">
                     <div>
-                        <strong>14B, Northern Street, Greater South Avenue</strong><br>
-                        New York 10001, U.S.A
+                        <strong>Shop A2A, No.137/2B, Express Food Street</strong><br>
+                        Semmancheri, Chennai - 600119
                     </div>
                     <div style="text-align: right;">
                         <strong>Service Amount</strong><br>
@@ -272,14 +260,14 @@ function createServiceCompletionHTML(invoice) {
             <div style="text-align: center; margin-top: 30px; padding: 20px; background: linear-gradient(135deg, #1a237e, #283593); color: white; border-radius: 0 0 10px 10px;">
                 <p style="margin: 5px 0; font-size: 1.1em; font-weight: 600;">Thank you for choosing our service!</p>
                 <p style="margin: 5px 0; font-size: 0.9em;">ZEDSON WATCHCRAFT - Expert watch servicing</p>
-                <p style="margin: 5px 0; font-size: 0.85em;">Contact: +91-9345667717 | Email: zedsonwatchcraft@gmail.com</p>
+                <p style="margin: 5px 0; font-size: 0.85em;">Contact: +91-9345667717 | 9500661769 | Email: zedsonwatchcraft@gmail.com</p>
             </div>
         </div>
     `;
 }
 
 /**
- * Create Service Acknowledgement HTML with logo
+ * Create Service Acknowledgement HTML with logo (unchanged)
  */
 function createServiceAcknowledgementHTML(acknowledgement) {
     return `
@@ -350,7 +338,7 @@ function createServiceAcknowledgementHTML(acknowledgement) {
             <div style="text-align: center; padding: 20px; background: linear-gradient(135deg, #1a237e, #283593); color: white; border-radius: 0 0 10px 10px;">
                 <p style="margin: 5px 0;">Thank you for trusting us with your timepiece!</p>
                 <p style="margin: 5px 0; font-size: 0.9em;">ZEDSON WATCHCRAFT - Expert watch servicing</p>
-                <p style="margin: 5px 0; font-size: 0.85em;">Contact: +91-9345667717 | Email: zedsonwatchcraft@gmail.com</p>
+                <p style="margin: 5px 0; font-size: 0.85em;">Contact: +91-9345667717 | 9500661769 | Email: zedsonwatchcraft@gmail.com</p>
             </div>
         </div>
     `;

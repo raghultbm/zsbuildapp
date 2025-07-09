@@ -6,7 +6,7 @@
  */
 
 /**
- * Apply Revenue Filter - UPDATED with Sales Only and Services Only
+ * Apply Revenue Filter - UPDATED with All Transactions and Expenses
  */
 function applyRevenueFilter() {
     if (!window.SalesModule || !window.ServiceModule) {
@@ -15,14 +15,18 @@ function applyRevenueFilter() {
     }
     
     const filterType = document.getElementById('revenueFilterType')?.value;
+    const revenueType = document.getElementById('revenueTypeFilter')?.value || 'all';
+    const includeExpenses = document.getElementById('includeExpenses')?.checked || false;
     const resultsDiv = document.getElementById('revenueFilterResults');
     
     if (!filterType || !resultsDiv) return;
     
     let filteredSales = [];
     let filteredServices = [];
+    let filteredExpenses = [];
     let title = '';
     
+    // First filter by date/time
     if (filterType === 'dateRange') {
         const fromDate = document.getElementById('revenueFromDate')?.value;
         const toDate = document.getElementById('revenueToDate')?.value;
@@ -35,7 +39,12 @@ function applyRevenueFilter() {
         filteredSales = SalesModule.filterSalesByDateRange(fromDate, toDate);
         filteredServices = ServiceModule.filterServicesByDateRange(fromDate, toDate)
             .filter(s => s.status === 'completed');
-        title = `Revenue from ${Utils.formatDate(fromDate)} to ${Utils.formatDate(toDate)}`;
+        
+        if (includeExpenses && window.ExpenseModule) {
+            filteredExpenses = ExpenseModule.getExpensesByDateRange(fromDate, toDate);
+        }
+        
+        title = `Transactions from ${Utils.formatDate(fromDate)} to ${Utils.formatDate(toDate)}`;
         
     } else if (filterType === 'monthly') {
         const month = document.getElementById('revenueMonth')?.value;
@@ -46,53 +55,119 @@ function applyRevenueFilter() {
         filteredSales = SalesModule.filterSalesByMonth(month, year);
         filteredServices = ServiceModule.filterServicesByMonth(month, year)
             .filter(s => s.status === 'completed');
+        
+        if (includeExpenses && window.ExpenseModule) {
+            filteredExpenses = ExpenseModule.getExpensesByMonth(month, year);
+        }
+        
         const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
                            'July', 'August', 'September', 'October', 'November', 'December'];
-        title = `Revenue for ${monthNames[month]} ${year}`;
-        
-    } else if (filterType === 'salesOnly') {
-        filteredSales = SalesModule.sales || [];
-        filteredServices = []; // No services for sales only
-        title = 'Sales Only Revenue';
-        
-    } else if (filterType === 'servicesOnly') {
-        filteredSales = []; // No sales for services only
-        filteredServices = (ServiceModule.services || []).filter(s => s.status === 'completed');
-        title = 'Services Only Revenue';
+        title = `Transactions for ${monthNames[month]} ${year}`;
         
     } else {
+        // Show all transactions without any date range
         filteredSales = SalesModule.sales || [];
         filteredServices = (ServiceModule.services || []).filter(s => s.status === 'completed');
-        title = 'All Revenue';
+        
+        if (includeExpenses && window.ExpenseModule) {
+            filteredExpenses = ExpenseModule.expenses || [];
+        }
+        
+        title = 'All Transactions';
+    }
+    
+    // Then filter by revenue type
+    if (revenueType === 'sales') {
+        filteredServices = [];
+        title += ' (Sales Only)';
+    } else if (revenueType === 'services') {
+        filteredSales = [];
+        title += ' (Services Only)';
     }
     
     // Calculate totals
     const salesAmount = filteredSales.reduce((sum, sale) => sum + sale.totalAmount, 0);
     const servicesAmount = filteredServices.reduce((sum, service) => sum + service.cost, 0);
-    const totalAmount = salesAmount + servicesAmount;
-    const totalTransactions = filteredSales.length + filteredServices.length;
+    const expensesAmount = includeExpenses ? filteredExpenses.reduce((sum, expense) => sum + expense.amount, 0) : 0;
+    const totalRevenue = salesAmount + servicesAmount;
+    const netAmount = totalRevenue - expensesAmount;
+    const totalTransactions = filteredSales.length + filteredServices.length + (includeExpenses ? filteredExpenses.length : 0);
     
-    // Display results
+    // Display results with enhanced stats
+    let statsHtml = `
+        <div class="stat-card" style="margin: 10px;">
+            <h3>${totalTransactions}</h3>
+            <p>Total Transactions</p>
+        </div>
+        <div class="stat-card" style="margin: 10px;">
+            <h3>${Utils.formatCurrency(salesAmount)}</h3>
+            <p>Sales Revenue</p>
+        </div>
+        <div class="stat-card" style="margin: 10px;">
+            <h3>${Utils.formatCurrency(servicesAmount)}</h3>
+            <p>Services Revenue</p>
+        </div>
+        <div class="stat-card" style="margin: 10px;">
+            <h3>${Utils.formatCurrency(totalRevenue)}</h3>
+            <p>Total Revenue</p>
+        </div>
+    `;
+    
+    if (includeExpenses) {
+        statsHtml += `
+            <div class="stat-card" style="margin: 10px;">
+                <h3 style="color: #dc3545;">${Utils.formatCurrency(expensesAmount)}</h3>
+                <p>Total Expenses</p>
+            </div>
+            <div class="stat-card" style="margin: 10px;">
+                <h3 style="color: ${netAmount >= 0 ? '#28a745' : '#dc3545'};">${Utils.formatCurrency(netAmount)}</h3>
+                <p>Net Amount</p>
+            </div>
+        `;
+    }
+    
+    let tableRows = '';
+    
+    // Add sales rows
+    tableRows += filteredSales.map(sale => `
+        <tr>
+            <td><span class="status available">Sales</span></td>
+            <td>${Utils.sanitizeHtml(sale.date)}</td>
+            <td>${Utils.sanitizeHtml(sale.customerName)}</td>
+            <td>${Utils.sanitizeHtml(sale.watchName)}</td>
+            <td style="color: #28a745;">${Utils.formatCurrency(sale.totalAmount)}</td>
+        </tr>
+    `).join('');
+    
+    // Add services rows
+    tableRows += filteredServices.map(service => `
+        <tr>
+            <td><span class="status completed">Service</span></td>
+            <td>${Utils.sanitizeHtml(service.actualDelivery || service.date)}</td>
+            <td>${Utils.sanitizeHtml(service.customerName)}</td>
+            <td>${Utils.sanitizeHtml(service.watchName)}</td>
+            <td style="color: #28a745;">${Utils.formatCurrency(service.cost)}</td>
+        </tr>
+    `).join('');
+    
+    // Add expenses rows if included
+    if (includeExpenses) {
+        tableRows += filteredExpenses.map(expense => `
+            <tr>
+                <td><span class="status on-hold">Expense</span></td>
+                <td>${Utils.sanitizeHtml(expense.formattedDate)}</td>
+                <td>-</td>
+                <td>${Utils.sanitizeHtml(expense.description)}</td>
+                <td style="color: #dc3545;">-${Utils.formatCurrency(expense.amount)}</td>
+            </tr>
+        `).join('');
+    }
+    
     resultsDiv.innerHTML = `
         <div class="filter-results">
             <h3>${title}</h3>
             <div class="stats" style="margin: 20px 0;">
-                <div class="stat-card" style="margin: 10px;">
-                    <h3>${totalTransactions}</h3>
-                    <p>Total Transactions</p>
-                </div>
-                <div class="stat-card" style="margin: 10px;">
-                    <h3>${Utils.formatCurrency(salesAmount)}</h3>
-                    <p>Sales Revenue</p>
-                </div>
-                <div class="stat-card" style="margin: 10px;">
-                    <h3>${Utils.formatCurrency(servicesAmount)}</h3>
-                    <p>Services Revenue</p>
-                </div>
-                <div class="stat-card" style="margin: 10px;">
-                    <h3>${Utils.formatCurrency(totalAmount)}</h3>
-                    <p>Total Revenue</p>
-                </div>
+                ${statsHtml}
             </div>
             <div style="max-height: 300px; overflow-y: auto;">
                 <table class="table">
@@ -106,24 +181,7 @@ function applyRevenueFilter() {
                         </tr>
                     </thead>
                     <tbody>
-                        ${filteredSales.map(sale => `
-                            <tr>
-                                <td><span class="status available">Sales</span></td>
-                                <td>${Utils.sanitizeHtml(sale.date)}</td>
-                                <td>${Utils.sanitizeHtml(sale.customerName)}</td>
-                                <td>${Utils.sanitizeHtml(sale.watchName)}</td>
-                                <td>${Utils.formatCurrency(sale.totalAmount)}</td>
-                            </tr>
-                        `).join('')}
-                        ${filteredServices.map(service => `
-                            <tr>
-                                <td><span class="status completed">Service</span></td>
-                                <td>${Utils.sanitizeHtml(service.actualDelivery || service.date)}</td>
-                                <td>${Utils.sanitizeHtml(service.customerName)}</td>
-                                <td>${Utils.sanitizeHtml(service.watchName)}</td>
-                                <td>${Utils.formatCurrency(service.cost)}</td>
-                            </tr>
-                        `).join('')}
+                        ${tableRows}
                     </tbody>
                 </table>
             </div>
@@ -136,9 +194,13 @@ function applyRevenueFilter() {
  */
 function resetRevenueFilter() {
     const filterType = document.getElementById('revenueFilterType');
+    const revenueType = document.getElementById('revenueTypeFilter');
+    const includeExpenses = document.getElementById('includeExpenses');
     const resultsDiv = document.getElementById('revenueFilterResults');
     
     if (filterType) filterType.value = 'all';
+    if (revenueType) revenueType.value = 'all';
+    if (includeExpenses) includeExpenses.checked = false;
     if (resultsDiv) resultsDiv.innerHTML = '';
     
     window.AppCoreModule.toggleRevenueFilterInputs();
@@ -146,7 +208,7 @@ function resetRevenueFilter() {
 }
 
 /**
- * Load modal templates
+ * Load modal templates - Updated to include expense modal
  */
 function loadModalTemplates() {
     const modalsContainer = document.getElementById('modals-container');
@@ -279,6 +341,29 @@ function loadModalTemplates() {
                         <input type="email" id="newUserEmail" required placeholder="Enter email">
                     </div>
                     <button type="submit" class="btn">Add User</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Add Expense Modal -->
+        <div id="addExpenseModal" class="modal">
+            <div class="modal-content">
+                <span class="close" onclick="closeModal('addExpenseModal')">&times;</span>
+                <h2>Add New Expense</h2>
+                <form onsubmit="ExpenseModule.addNewExpense(event)">
+                    <div class="form-group">
+                        <label>Date:</label>
+                        <input type="date" id="expenseDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Description:</label>
+                        <textarea id="expenseDescription" rows="3" required placeholder="Enter expense description..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Amount (₹):</label>
+                        <input type="number" id="expenseAmount" required min="0.01" step="0.01" placeholder="0.00">
+                    </div>
+                    <button type="submit" class="btn">Add Expense</button>
                 </form>
             </div>
         </div>
@@ -417,6 +502,12 @@ function assignGlobalFunctions() {
         }
     };
 
+    window.searchSales = function(query) {
+        if (window.SalesModule) {
+            SalesModule.searchSales(query);
+        }
+    };
+
     // Service functions
     window.openNewServiceModal = function() {
         if (window.ServiceModule) {
@@ -439,6 +530,68 @@ function assignGlobalFunctions() {
     window.editService = function(serviceId) {
         if (window.ServiceModule) {
             ServiceModule.editService(serviceId);
+        }
+    };
+
+    window.searchServices = function(query) {
+        if (window.ServiceModule) {
+            ServiceModule.searchServices(query);
+        }
+    };
+
+    // Expense functions
+    window.openAddExpenseModal = function() {
+        if (window.ExpenseModule) {
+            ExpenseModule.openAddExpenseModal();
+        }
+    };
+
+    window.editExpense = function(expenseId) {
+        if (window.ExpenseModule) {
+            ExpenseModule.editExpense(expenseId);
+        }
+    };
+
+    window.deleteExpense = function(expenseId) {
+        if (window.ExpenseModule) {
+            ExpenseModule.deleteExpense(expenseId);
+        }
+    };
+
+    window.searchExpenses = function(query) {
+        if (window.ExpenseModule) {
+            ExpenseModule.searchExpenses(query);
+        }
+    };
+
+    // Invoice functions
+    window.searchInvoices = function(query) {
+        if (window.InvoiceModule) {
+            InvoiceModule.searchInvoices(query);
+        }
+    };
+
+    window.filterInvoicesByType = function() {
+        if (window.InvoiceModule) {
+            InvoiceModule.filterInvoicesByType();
+        }
+    };
+
+    window.viewInvoice = function(invoiceId) {
+        if (window.InvoiceModule) {
+            InvoiceModule.viewInvoice(invoiceId);
+        }
+    };
+
+    window.printInvoice = function() {
+        if (window.InvoiceModule) {
+            InvoiceModule.printInvoice();
+        }
+    };
+
+    window.viewServiceAcknowledgement = function(serviceId) {
+        if (window.InvoiceModule) {
+            InvoiceModule.viewServiceAcknowledgement(serviceId);
         }
     };
 }

@@ -1,4 +1,4 @@
-// ZEDSON WATCHCRAFT - Inventory Management Module (Updated with Outlet Field)
+// ZEDSON WATCHCRAFT - Inventory Management Module (Updated with Optional Size Field)
 
 /**
  * Inventory and Watch Management System
@@ -89,7 +89,7 @@ function updateWatchCode() {
 }
 
 /**
- * Add new watch to inventory
+ * Add new watch to inventory - Updated to make size optional
  */
 function addNewWatch(event) {
     event.preventDefault();
@@ -104,14 +104,14 @@ function addNewWatch(event) {
     const type = document.getElementById('watchType').value;
     const brand = document.getElementById('watchBrand').value.trim();
     const model = document.getElementById('watchModel').value.trim();
-    const size = document.getElementById('watchSize').value.trim();
+    const size = document.getElementById('watchSize').value.trim(); // Now optional
     const price = parseFloat(document.getElementById('watchPrice').value);
     const quantity = parseInt(document.getElementById('watchQuantity').value);
     const outlet = document.getElementById('watchOutlet').value;
     const description = document.getElementById('watchDescription').value.trim();
     
-    // Validate input
-    if (!code || !type || !brand || !model || !size || !price || !quantity || !outlet) {
+    // Validate input - Size is now optional
+    if (!code || !type || !brand || !model || !price || !quantity || !outlet) {
         Utils.showNotification('Please fill in all required fields');
         return;
     }
@@ -132,14 +132,14 @@ function addNewWatch(event) {
         return;
     }
 
-    // Create new watch object
+    // Create new watch object - Size can be empty
     const newWatch = {
         id: nextWatchId++,
         code: code,
         type: type,
         brand: brand,
         model: model,
-        size: size,
+        size: size || '-', // Use '-' if size is empty
         price: price,
         quantity: quantity,
         outlet: outlet,
@@ -337,7 +337,7 @@ function getInventoryStats() {
 }
 
 /**
- * Edit watch
+ * Edit watch - Updated to make size optional
  */
 function editWatch(watchId) {
     if (!AuthModule.hasPermission('inventory')) {
@@ -351,7 +351,7 @@ function editWatch(watchId) {
         return;
     }
 
-    // Create edit modal with Type and Outlet fields
+    // Create edit modal with Type and Outlet fields, Size is optional
     const editModal = document.createElement('div');
     editModal.className = 'modal';
     editModal.id = 'editWatchModal';
@@ -389,8 +389,8 @@ function editWatch(watchId) {
                 </div>
                 <div class="grid grid-2">
                     <div class="form-group">
-                        <label>Size:</label>
-                        <input type="text" id="editWatchSize" value="${watch.size}" required placeholder="e.g., 40mm, 42mm">
+                        <label>Size (Optional):</label>
+                        <input type="text" id="editWatchSize" value="${watch.size === '-' ? '' : watch.size}" placeholder="e.g., 40mm, 42mm">
                     </div>
                     <div class="form-group">
                         <label>Price (₹):</label>
@@ -425,7 +425,7 @@ function editWatch(watchId) {
 }
 
 /**
- * Update watch
+ * Update watch - Updated to handle optional size
  */
 function updateWatch(event, watchId) {
     event.preventDefault();
@@ -440,14 +440,14 @@ function updateWatch(event, watchId) {
     const type = document.getElementById('editWatchType').value;
     const brand = document.getElementById('editWatchBrand').value.trim();
     const model = document.getElementById('editWatchModel').value.trim();
-    const size = document.getElementById('editWatchSize').value.trim();
+    const size = document.getElementById('editWatchSize').value.trim(); // Optional
     const price = parseFloat(document.getElementById('editWatchPrice').value);
     const quantity = parseInt(document.getElementById('editWatchQuantity').value);
     const outlet = document.getElementById('editWatchOutlet').value;
     const description = document.getElementById('editWatchDescription').value.trim();
 
-    // Validate input
-    if (!code || !type || !brand || !model || !size || !price || quantity < 0 || !outlet) {
+    // Validate input - Size is optional
+    if (!code || !type || !brand || !model || !price || quantity < 0 || !outlet) {
         Utils.showNotification('Please fill in all required fields');
         return;
     }
@@ -458,12 +458,12 @@ function updateWatch(event, watchId) {
         return;
     }
 
-    // Update watch
+    // Update watch - Size can be empty
     watch.code = code;
     watch.type = type;
     watch.brand = brand;
     watch.model = model;
-    watch.size = size;
+    watch.size = size || '-'; // Use '-' if size is empty
     watch.price = price;
     watch.quantity = quantity;
     watch.outlet = outlet;
@@ -493,7 +493,7 @@ function initializeInventory() {
 }
 
 /**
- * Load modal template for inventory with Type and Outlet fields
+ * Load modal template for inventory with Type and Outlet fields - Size made optional
  */
 function loadInventoryModal() {
     const modalHtml = `
@@ -532,8 +532,8 @@ function loadInventoryModal() {
                     </div>
                     <div class="grid grid-2">
                         <div class="form-group">
-                            <label>Size:</label>
-                            <input type="text" id="watchSize" required placeholder="e.g., 40mm, 42mm">
+                            <label>Size (Optional):</label>
+                            <input type="text" id="watchSize" placeholder="e.g., 40mm, 42mm">
                         </div>
                         <div class="form-group">
                             <label>Price (₹):</label>
