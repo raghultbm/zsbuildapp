@@ -1,4 +1,4 @@
-// ZEDSON WATCHCRAFT - Service Management Module (Updated Integration)
+// ZEDSON WATCHCRAFT - Service Management Module (Updated with Search)
 
 /**
  * Service Request Management System
@@ -247,7 +247,6 @@ function editService(serviceId) {
                     <div class="form-group">
                         <label>Strap Material:</label>
                         <select id="editServiceStrap" required>
-                            <option value="Leather" ${service.strapType === 'Leather' ? 'selected' : ''}>Leather</option>
                             <option value="Fiber" ${service.strapType === 'Fiber' ? 'selected' : ''}>Fiber</option>
                             <option value="Steel" ${service.strapType === 'Steel' ? 'selected' : ''}>Steel</option>
                             <option value="Gold Plated" ${service.strapType === 'Gold Plated' ? 'selected' : ''}>Gold Plated</option>
@@ -677,9 +676,7 @@ function renderServiceTable() {
         }
         
         // Add invoice view buttons
-        const hasAcknowledgement = window.InvoiceModule && 
-            InvoiceModule.hasServiceAcknowledgement && 
-            InvoiceModule.hasServiceAcknowledgement(service.id);
+        const hasAcknowledgement = service.acknowledgementGenerated;
         
         const hasCompletionInvoice = window.InvoiceModule && 
             InvoiceModule.getInvoicesForTransaction(service.id, 'service')
@@ -692,7 +689,7 @@ function renderServiceTable() {
                 ${!AuthModule.hasPermission('service') ? 'disabled' : ''}>Delete</button>
         `;
         
-        if (hasAcknowledgement || service.acknowledgementGenerated) {
+        if (hasAcknowledgement) {
             actionButtons += `
                 <button class="btn btn-success" onclick="viewServiceAcknowledgement(${service.id})" title="View Acknowledgement">Receipt</button>
             `;
@@ -890,5 +887,11 @@ window.viewServiceAcknowledgement = function(serviceId) {
 window.viewServiceCompletionInvoice = function(serviceId) {
     if (window.ServiceModule) {
         ServiceModule.viewServiceCompletionInvoice(serviceId);
+    }
+};
+
+window.searchServices = function(query) {
+    if (window.ServiceModule) {
+        ServiceModule.searchServices(query);
     }
 };

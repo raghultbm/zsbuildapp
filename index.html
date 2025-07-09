@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ZEDSON WATCHCRAFT - Outlet Management System</title>
+    <title>ZEDSON WATCHCRAFT - Management System</title>
     <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="css/login.css">
 </head>
@@ -55,7 +55,7 @@
                 </div>
                 
                 <div class="logo-container">
-                    <img src="assets/zedson-logo.png" alt="ZEDSON WATCHCRAFT" class="header-logo-image">
+                    <img src="assets/zedson-logo.png" alt="ZEDSON WATCHCRAFT" class="header-logo-image-large">
                     <!-- Fallback to original design if image fails to load -->
                     <div class="logo-circle" style="display: none;">
                         <div class="logo-watch"></div>
@@ -65,7 +65,6 @@
                         <div class="subtitle">WATCHCRAFT</div>
                     </div>
                 </div>
-                <p>Watch Outlet Management System</p>
                 <div class="nav" id="mainNavigation">
                     <button class="nav-btn active" onclick="showSection('dashboard', this)">Dashboard</button>
                     <button class="nav-btn" onclick="showSection('customers', this)">Customers</button>
@@ -84,15 +83,11 @@
                     <div class="stats">
                         <div class="stat-card">
                             <h3 id="totalWatches">3</h3>
-                            <p>Total Watches</p>
+                            <p>Total Items</p>
                         </div>
-                        <div class="stat-card clickable-stat" onclick="openSalesFilter()">
-                            <h3 id="totalSales">₹0</h3>
-                            <p>Total Sales</p>
-                        </div>
-                        <div class="stat-card clickable-stat" onclick="openServiceFilter()">
-                            <h3 id="totalServices">₹0</h3>
-                            <p>Total Services</p>
+                        <div class="stat-card clickable-stat" onclick="openRevenueAnalytics()">
+                            <h3 id="todayRevenue">₹0</h3>
+                            <p>Today's Revenue</p>
                         </div>
                         <div class="stat-card">
                             <h3 id="incompleteServices">0</h3>
@@ -122,10 +117,10 @@
 
                 <!-- Inventory Section -->
                 <div id="inventory" class="section">
-                    <h2>Watch Inventory</h2>
+                    <h2>Inventory Management</h2>
                     <div style="margin-bottom: 20px;">
-                        <button class="btn" onclick="openAddWatchModal()">Add New Watch</button>
-                        <input type="text" class="search-box" placeholder="Search by code, brand, or model..." 
+                        <button class="btn" onclick="openAddWatchModal()">Add New Item</button>
+                        <input type="text" class="search-box" placeholder="Search by code, type, brand, or model..." 
                                onkeyup="searchWatches(this.value)" style="width: 300px; display: inline-block; margin-left: 20px;">
                     </div>
                     <table class="table" id="watchTable">
@@ -133,8 +128,10 @@
                             <tr>
                                 <th>S.No</th>
                                 <th>Code</th>
+                                <th>Type</th>
                                 <th>Brand</th>
                                 <th>Model</th>
+                                <th>Size</th>
                                 <th>Price</th>
                                 <th>Quantity</th>
                                 <th>Status</th>
@@ -152,6 +149,8 @@
                     <h2>Sales Management</h2>
                     <div style="margin-bottom: 20px;">
                         <button class="btn" onclick="openNewSaleModal()">New Sale</button>
+                        <input type="text" class="search-box" placeholder="Search sales..." 
+                               onkeyup="searchSales(this.value)" style="width: 300px; display: inline-block; margin-left: 20px;">
                     </div>
                     <table class="table" id="salesTable">
                         <thead>
@@ -160,7 +159,7 @@
                                 <th style="width: 100px;">Date</th>
                                 <th style="width: 80px;">Time</th>
                                 <th style="width: 150px;">Customer</th>
-                                <th style="width: 200px;">Watch</th>
+                                <th style="width: 200px;">Item</th>
                                 <th style="width: 120px;">Price</th>
                                 <th style="width: 120px;">Payment Method</th>
                                 <th style="width: 140px;">Actions</th>
@@ -177,6 +176,8 @@
                     <h2>Service Management</h2>
                     <div style="margin-bottom: 20px;">
                         <button class="btn" onclick="openNewServiceModal()">New Service Request</button>
+                        <input type="text" class="search-box" placeholder="Search services..." 
+                               onkeyup="searchServices(this.value)" style="width: 300px; display: inline-block; margin-left: 20px;">
                     </div>
                     <table class="table" id="serviceTable">
                         <thead>
@@ -208,7 +209,6 @@
                         <select id="invoiceTypeFilter" onchange="filterInvoicesByType()" style="margin-left: 10px; padding: 8px;">
                             <option value="">All Types</option>
                             <option value="Sales">Sales Invoice</option>
-                            <option value="Service Acknowledgement">Service Acknowledgement</option>
                             <option value="Service Completion">Service Completion</option>
                         </select>
                     </div>
@@ -235,7 +235,11 @@
                 <!-- Customers Section -->
                 <div id="customers" class="section">
                     <h2>Customer Management</h2>
-                    <button class="btn" onclick="openAddCustomerModal()">Add Customer</button>
+                    <div style="margin-bottom: 20px;">
+                        <button class="btn" onclick="openAddCustomerModal()">Add Customer</button>
+                        <input type="text" class="search-box" placeholder="Search customers..." 
+                               onkeyup="searchCustomers(this.value)" style="width: 300px; display: inline-block; margin-left: 20px;">
+                    </div>
                     <table class="table" id="customerTable">
                         <thead>
                             <tr>
@@ -277,6 +281,64 @@
                         </tbody>
                     </table>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Combined Revenue Analytics Modal -->
+    <div id="revenueAnalyticsModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('revenueAnalyticsModal')">&times;</span>
+            <h2>Revenue Analytics</h2>
+            <div class="filter-controls">
+                <div class="grid grid-2">
+                    <div class="form-group">
+                        <label>Filter Type:</label>
+                        <select id="revenueFilterType" onchange="toggleRevenueFilterInputs()">
+                            <option value="all">All Revenue</option>
+                            <option value="dateRange">Date Range</option>
+                            <option value="monthly">Monthly</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="revenueYearGroup">
+                        <label>Year:</label>
+                        <select id="revenueYear"></select>
+                    </div>
+                </div>
+                <div class="grid grid-2" id="revenueDateRangeInputs" style="display: none;">
+                    <div class="form-group">
+                        <label>From Date:</label>
+                        <input type="date" id="revenueFromDate">
+                    </div>
+                    <div class="form-group">
+                        <label>To Date:</label>
+                        <input type="date" id="revenueToDate">
+                    </div>
+                </div>
+                <div class="form-group" id="revenueMonthGroup" style="display: none;">
+                    <label>Month:</label>
+                    <select id="revenueMonth">
+                        <option value="0">January</option>
+                        <option value="1">February</option>
+                        <option value="2">March</option>
+                        <option value="3">April</option>
+                        <option value="4">May</option>
+                        <option value="5">June</option>
+                        <option value="6">July</option>
+                        <option value="7">August</option>
+                        <option value="8">September</option>
+                        <option value="9">October</option>
+                        <option value="10">November</option>
+                        <option value="11">December</option>
+                    </select>
+                </div>
+                <button class="btn" onclick="applyRevenueFilter()">Apply Filter</button>
+                <button class="btn btn-danger" onclick="resetRevenueFilter()">Reset</button>
+                <button class="btn btn-success" onclick="openSalesFilter()">Sales Only</button>
+                <button class="btn btn-success" onclick="openServiceFilter()">Services Only</button>
+            </div>
+            <div id="revenueFilterResults">
+                <!-- Results will be displayed here -->
             </div>
         </div>
     </div>
@@ -414,6 +476,7 @@
     <script src="js/sales.js"></script>
     <script src="js/service.js"></script>
     <script src="js/customers.js"></script>
+    <script src="js/invoice-templates.js"></script>
     <script src="js/invoices.js"></script>
     <script src="js/app.js"></script>
 

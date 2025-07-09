@@ -64,7 +64,19 @@ body {
     transition: transform 0.3s ease;
 }
 
-.header-logo-image:hover {
+/* Larger logo for header */
+.header-logo-image-large {
+    height: 120px;
+    width: auto;
+    max-width: 400px;
+    margin: 0 auto;
+    display: block;
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.1));
+    transition: transform 0.3s ease;
+}
+
+.header-logo-image:hover,
+.header-logo-image-large:hover {
     transform: scale(1.05);
 }
 
@@ -662,6 +674,11 @@ body {
     .header-logo-image {
         height: 60px;
         max-width: 250px;
+    }
+
+    .header-logo-image-large {
+        height: 80px;
+        max-width: 300px;
     }
 
     .header h1 {

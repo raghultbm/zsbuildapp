@@ -1,4 +1,4 @@
-// ZEDSON WATCHCRAFT - Main Application
+// ZEDSON WATCHCRAFT - Main Application (Fixed)
 
 /**
  * Main Application Controller
@@ -80,35 +80,85 @@ function updateSectionData(sectionId) {
 }
 
 /**
+ * Get today's date in YYYY-MM-DD format
+ */
+function getTodayDate() {
+    return new Date().toISOString().split('T')[0];
+}
+
+/**
+ * Get today's sales and services revenue
+ */
+function getTodayRevenue() {
+    const today = Utils.formatDate(new Date());
+    let salesRevenue = 0;
+    let servicesRevenue = 0;
+    
+    // Get today's sales
+    if (window.SalesModule && SalesModule.sales) {
+        salesRevenue = SalesModule.sales
+            .filter(sale => sale.date === today)
+            .reduce((sum, sale) => sum + sale.totalAmount, 0);
+    }
+    
+    // Get today's completed services
+    if (window.ServiceModule && ServiceModule.services) {
+        servicesRevenue = ServiceModule.services
+            .filter(service => service.status === 'completed' && 
+                     service.actualDelivery === today)
+            .reduce((sum, service) => sum + service.cost, 0);
+    }
+    
+    return {
+        salesRevenue,
+        servicesRevenue,
+        totalRevenue: salesRevenue + servicesRevenue
+    };
+}
+
+/**
  * Update dashboard statistics
  */
 function updateDashboard() {
     // Update statistics cards with safe checks
     if (window.InventoryModule) {
         const inventoryStats = InventoryModule.getInventoryStats();
-        document.getElementById('totalWatches').textContent = inventoryStats.totalWatches;
+        const totalWatchesElement = document.getElementById('totalWatches');
+        if (totalWatchesElement) {
+            totalWatchesElement.textContent = inventoryStats.totalWatches;
+        }
     }
     
     if (window.CustomerModule) {
         const customerStats = CustomerModule.getCustomerStats();
-        document.getElementById('totalCustomers').textContent = customerStats.totalCustomers;
+        const totalCustomersElement = document.getElementById('totalCustomers');
+        if (totalCustomersElement) {
+            totalCustomersElement.textContent = customerStats.totalCustomers;
+        }
     }
     
-    // Update sales and services if modules are available
-    if (window.SalesModule) {
-        const salesStats = SalesModule.getSalesStats();
-        document.getElementById('totalSales').textContent = Utils.formatCurrency(salesStats.totalSales);
+    // Update combined today's revenue (Sales + Services)
+    const todayRevenue = getTodayRevenue();
+    const todayRevenueElement = document.getElementById('todayRevenue');
+    if (todayRevenueElement) {
+        todayRevenueElement.textContent = Utils.formatCurrency(todayRevenue.totalRevenue);
     }
     
+    // Update incomplete services
     if (window.ServiceModule) {
         const serviceStats = ServiceModule.getServiceStats();
-        document.getElementById('totalServices').textContent = Utils.formatCurrency(serviceStats.totalRevenue);
-        document.getElementById('incompleteServices').textContent = serviceStats.incompleteServices;
+        const incompleteServicesElement = document.getElementById('incompleteServices');
+        if (incompleteServicesElement) {
+            incompleteServicesElement.textContent = serviceStats.incompleteServices;
+        }
     }
 
     if (window.InvoiceModule) {
         const invoiceStats = InvoiceModule.getInvoiceStats();
-        document.getElementById('totalInvoices').textContent = invoiceStats.totalInvoices;
+        const totalInvoicesElement = document.getElementById('totalInvoices');
+        if (totalInvoicesElement) {
+            totalInvoicesElement.textContent = invoiceStats.totalInvoices;
+        }
     }
 
     // Update recent activities
@@ -153,57 +203,256 @@ function updateRecentActivities() {
 }
 
 /**
- * Open Sales Filter Modal
+ * Open Combined Revenue Analytics Modal
  */
-function openSalesFilter() {
-    document.getElementById('salesFilterModal').style.display = 'block';
+function openRevenueAnalytics() {
+    const modal = document.getElementById('revenueAnalyticsModal');
+    if (!modal) {
+        Utils.showNotification('Revenue analytics modal not found');
+        return;
+    }
+    
+    modal.style.display = 'block';
     
     // Populate year dropdown
     const currentYear = new Date().getFullYear();
-    const yearSelect = document.getElementById('salesYear');
-    yearSelect.innerHTML = '';
-    for (let year = currentYear; year >= currentYear - 5; year--) {
-        yearSelect.innerHTML += `<option value="${year}" ${year === currentYear ? 'selected' : ''}>${year}</option>`;
+    const yearSelect = document.getElementById('revenueYear');
+    if (yearSelect) {
+        yearSelect.innerHTML = '';
+        for (let year = currentYear; year >= currentYear - 5; year--) {
+            yearSelect.innerHTML += `<option value="${year}" ${year === currentYear ? 'selected' : ''}>${year}</option>`;
+        }
     }
     
     // Set current month
     const currentMonth = new Date().getMonth();
-    document.getElementById('salesMonth').value = currentMonth;
+    const monthSelect = document.getElementById('revenueMonth');
+    if (monthSelect) {
+        monthSelect.value = currentMonth;
+    }
+    
+    // Reset and show all revenue initially
+    resetRevenueFilter();
+}
+
+/**
+ * Open Sales Filter Modal (separate analytics)
+ */
+function openSalesFilter() {
+    const modal = document.getElementById('salesFilterModal');
+    if (!modal) {
+        Utils.showNotification('Sales analytics modal not found');
+        return;
+    }
+    
+    modal.style.display = 'block';
+    
+    // Populate year dropdown
+    const currentYear = new Date().getFullYear();
+    const yearSelect = document.getElementById('salesYear');
+    if (yearSelect) {
+        yearSelect.innerHTML = '';
+        for (let year = currentYear; year >= currentYear - 5; year--) {
+            yearSelect.innerHTML += `<option value="${year}" ${year === currentYear ? 'selected' : ''}>${year}</option>`;
+        }
+    }
+    
+    // Set current month
+    const currentMonth = new Date().getMonth();
+    const monthSelect = document.getElementById('salesMonth');
+    if (monthSelect) {
+        monthSelect.value = currentMonth;
+    }
     
     // Reset and show all sales initially
     resetSalesFilter();
 }
 
 /**
- * Open Service Filter Modal
+ * Open Service Filter Modal (separate analytics)
  */
 function openServiceFilter() {
-    document.getElementById('serviceFilterModal').style.display = 'block';
+    const modal = document.getElementById('serviceFilterModal');
+    if (!modal) {
+        Utils.showNotification('Service analytics modal not found');
+        return;
+    }
+    
+    modal.style.display = 'block';
     
     // Populate year dropdown
     const currentYear = new Date().getFullYear();
     const yearSelect = document.getElementById('serviceYear');
-    yearSelect.innerHTML = '';
-    for (let year = currentYear; year >= currentYear - 5; year--) {
-        yearSelect.innerHTML += `<option value="${year}" ${year === currentYear ? 'selected' : ''}>${year}</option>`;
+    if (yearSelect) {
+        yearSelect.innerHTML = '';
+        for (let year = currentYear; year >= currentYear - 5; year--) {
+            yearSelect.innerHTML += `<option value="${year}" ${year === currentYear ? 'selected' : ''}>${year}</option>`;
+        }
     }
     
     // Set current month
     const currentMonth = new Date().getMonth();
-    document.getElementById('serviceMonth').value = currentMonth;
+    const monthSelect = document.getElementById('serviceMonth');
+    if (monthSelect) {
+        monthSelect.value = currentMonth;
+    }
     
     // Reset and show all services initially
     resetServiceFilter();
 }
 
 /**
+ * Toggle Revenue Filter Inputs
+ */
+function toggleRevenueFilterInputs() {
+    const filterType = document.getElementById('revenueFilterType')?.value;
+    const dateRangeInputs = document.getElementById('revenueDateRangeInputs');
+    const monthGroup = document.getElementById('revenueMonthGroup');
+    const yearGroup = document.getElementById('revenueYearGroup');
+    
+    if (!filterType || !dateRangeInputs || !monthGroup || !yearGroup) return;
+    
+    // Hide all inputs first
+    dateRangeInputs.style.display = 'none';
+    monthGroup.style.display = 'none';
+    
+    if (filterType === 'dateRange') {
+        dateRangeInputs.style.display = 'grid';
+        yearGroup.style.display = 'none';
+    } else if (filterType === 'monthly') {
+        monthGroup.style.display = 'block';
+        yearGroup.style.display = 'block';
+    } else {
+        yearGroup.style.display = 'block';
+    }
+}
+
+/**
+ * Apply Revenue Filter (Combined Sales + Services)
+ */
+function applyRevenueFilter() {
+    if (!window.SalesModule || !window.ServiceModule) {
+        Utils.showNotification('Sales or Service module not available');
+        return;
+    }
+    
+    const filterType = document.getElementById('revenueFilterType')?.value;
+    const resultsDiv = document.getElementById('revenueFilterResults');
+    
+    if (!filterType || !resultsDiv) return;
+    
+    let filteredSales = [];
+    let filteredServices = [];
+    let title = '';
+    
+    if (filterType === 'dateRange') {
+        const fromDate = document.getElementById('revenueFromDate')?.value;
+        const toDate = document.getElementById('revenueToDate')?.value;
+        
+        if (!fromDate || !toDate) {
+            Utils.showNotification('Please select both from and to dates.');
+            return;
+        }
+        
+        filteredSales = SalesModule.filterSalesByDateRange(fromDate, toDate);
+        filteredServices = ServiceModule.filterServicesByDateRange(fromDate, toDate)
+            .filter(s => s.status === 'completed');
+        title = `Revenue from ${Utils.formatDate(fromDate)} to ${Utils.formatDate(toDate)}`;
+        
+    } else if (filterType === 'monthly') {
+        const month = document.getElementById('revenueMonth')?.value;
+        const year = document.getElementById('revenueYear')?.value;
+        
+        if (month === null || !year) return;
+        
+        filteredSales = SalesModule.filterSalesByMonth(month, year);
+        filteredServices = ServiceModule.filterServicesByMonth(month, year)
+            .filter(s => s.status === 'completed');
+        const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                           'July', 'August', 'September', 'October', 'November', 'December'];
+        title = `Revenue for ${monthNames[month]} ${year}`;
+        
+    } else {
+        filteredSales = SalesModule.sales || [];
+        filteredServices = (ServiceModule.services || []).filter(s => s.status === 'completed');
+        title = 'All Revenue';
+    }
+    
+    // Calculate totals
+    const salesAmount = filteredSales.reduce((sum, sale) => sum + sale.totalAmount, 0);
+    const servicesAmount = filteredServices.reduce((sum, service) => sum + service.cost, 0);
+    const totalAmount = salesAmount + servicesAmount;
+    const totalTransactions = filteredSales.length + filteredServices.length;
+    
+    // Display results
+    resultsDiv.innerHTML = `
+        <div class="filter-results">
+            <h3>${title}</h3>
+            <div class="stats" style="margin: 20px 0;">
+                <div class="stat-card" style="margin: 10px;">
+                    <h3>${totalTransactions}</h3>
+                    <p>Total Transactions</p>
+                </div>
+                <div class="stat-card" style="margin: 10px;">
+                    <h3>${Utils.formatCurrency(salesAmount)}</h3>
+                    <p>Sales Revenue</p>
+                </div>
+                <div class="stat-card" style="margin: 10px;">
+                    <h3>${Utils.formatCurrency(servicesAmount)}</h3>
+                    <p>Services Revenue</p>
+                </div>
+                <div class="stat-card" style="margin: 10px;">
+                    <h3>${Utils.formatCurrency(totalAmount)}</h3>
+                    <p>Total Revenue</p>
+                </div>
+            </div>
+            <div style="max-height: 300px; overflow-y: auto;">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Type</th>
+                            <th>Date</th>
+                            <th>Customer</th>
+                            <th>Details</th>
+                            <th>Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${filteredSales.map(sale => `
+                            <tr>
+                                <td><span class="status available">Sales</span></td>
+                                <td>${Utils.sanitizeHtml(sale.date)}</td>
+                                <td>${Utils.sanitizeHtml(sale.customerName)}</td>
+                                <td>${Utils.sanitizeHtml(sale.watchName)}</td>
+                                <td>${Utils.formatCurrency(sale.totalAmount)}</td>
+                            </tr>
+                        `).join('')}
+                        ${filteredServices.map(service => `
+                            <tr>
+                                <td><span class="status completed">Service</span></td>
+                                <td>${Utils.sanitizeHtml(service.actualDelivery || service.date)}</td>
+                                <td>${Utils.sanitizeHtml(service.customerName)}</td>
+                                <td>${Utils.sanitizeHtml(service.watchName)}</td>
+                                <td>${Utils.formatCurrency(service.cost)}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `;
+}
+
+/**
  * Toggle Sales Filter Inputs
  */
 function toggleSalesFilterInputs() {
-    const filterType = document.getElementById('salesFilterType').value;
+    const filterType = document.getElementById('salesFilterType')?.value;
     const dateRangeInputs = document.getElementById('salesDateRangeInputs');
     const monthGroup = document.getElementById('salesMonthGroup');
     const yearGroup = document.getElementById('salesYearGroup');
+    
+    if (!filterType || !dateRangeInputs || !monthGroup || !yearGroup) return;
     
     // Hide all inputs first
     dateRangeInputs.style.display = 'none';
@@ -224,10 +473,12 @@ function toggleSalesFilterInputs() {
  * Toggle Service Filter Inputs
  */
 function toggleServiceFilterInputs() {
-    const filterType = document.getElementById('serviceFilterType').value;
+    const filterType = document.getElementById('serviceFilterType')?.value;
     const dateRangeInputs = document.getElementById('serviceDateRangeInputs');
     const monthGroup = document.getElementById('serviceMonthGroup');
     const yearGroup = document.getElementById('serviceYearGroup');
+    
+    if (!filterType || !dateRangeInputs || !monthGroup || !yearGroup) return;
     
     // Hide all inputs first
     dateRangeInputs.style.display = 'none';
@@ -248,16 +499,22 @@ function toggleServiceFilterInputs() {
  * Apply Sales Filter
  */
 function applySalesFilter() {
-    if (!window.SalesModule) return;
+    if (!window.SalesModule) {
+        Utils.showNotification('Sales module not available');
+        return;
+    }
     
-    const filterType = document.getElementById('salesFilterType').value;
+    const filterType = document.getElementById('salesFilterType')?.value;
     const resultsDiv = document.getElementById('salesFilterResults');
+    
+    if (!filterType || !resultsDiv) return;
+    
     let filteredSales = [];
     let title = '';
     
     if (filterType === 'dateRange') {
-        const fromDate = document.getElementById('salesFromDate').value;
-        const toDate = document.getElementById('salesToDate').value;
+        const fromDate = document.getElementById('salesFromDate')?.value;
+        const toDate = document.getElementById('salesToDate')?.value;
         
         if (!fromDate || !toDate) {
             Utils.showNotification('Please select both from and to dates.');
@@ -268,8 +525,10 @@ function applySalesFilter() {
         title = `Sales from ${Utils.formatDate(fromDate)} to ${Utils.formatDate(toDate)}`;
         
     } else if (filterType === 'monthly') {
-        const month = document.getElementById('salesMonth').value;
-        const year = document.getElementById('salesYear').value;
+        const month = document.getElementById('salesMonth')?.value;
+        const year = document.getElementById('salesYear')?.value;
+        
+        if (month === null || !year) return;
         
         filteredSales = SalesModule.filterSalesByMonth(month, year);
         const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
@@ -277,7 +536,7 @@ function applySalesFilter() {
         title = `Sales for ${monthNames[month]} ${year}`;
         
     } else {
-        filteredSales = SalesModule.sales;
+        filteredSales = SalesModule.sales || [];
         title = 'All Sales';
     }
     
@@ -305,7 +564,7 @@ function applySalesFilter() {
                         <tr>
                             <th>Date</th>
                             <th>Customer</th>
-                            <th>Watch</th>
+                            <th>Item</th>
                             <th>Amount</th>
                         </tr>
                     </thead>
@@ -329,16 +588,22 @@ function applySalesFilter() {
  * Apply Service Filter
  */
 function applyServiceFilter() {
-    if (!window.ServiceModule) return;
+    if (!window.ServiceModule) {
+        Utils.showNotification('Service module not available');
+        return;
+    }
     
-    const filterType = document.getElementById('serviceFilterType').value;
+    const filterType = document.getElementById('serviceFilterType')?.value;
     const resultsDiv = document.getElementById('serviceFilterResults');
+    
+    if (!filterType || !resultsDiv) return;
+    
     let filteredServices = [];
     let title = '';
     
     if (filterType === 'dateRange') {
-        const fromDate = document.getElementById('serviceFromDate').value;
-        const toDate = document.getElementById('serviceToDate').value;
+        const fromDate = document.getElementById('serviceFromDate')?.value;
+        const toDate = document.getElementById('serviceToDate')?.value;
         
         if (!fromDate || !toDate) {
             Utils.showNotification('Please select both from and to dates.');
@@ -349,8 +614,10 @@ function applyServiceFilter() {
         title = `Services from ${Utils.formatDate(fromDate)} to ${Utils.formatDate(toDate)}`;
         
     } else if (filterType === 'monthly') {
-        const month = document.getElementById('serviceMonth').value;
-        const year = document.getElementById('serviceYear').value;
+        const month = document.getElementById('serviceMonth')?.value;
+        const year = document.getElementById('serviceYear')?.value;
+        
+        if (month === null || !year) return;
         
         filteredServices = ServiceModule.filterServicesByMonth(month, year);
         const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
@@ -358,7 +625,7 @@ function applyServiceFilter() {
         title = `Services for ${monthNames[month]} ${year}`;
         
     } else {
-        filteredServices = ServiceModule.services;
+        filteredServices = ServiceModule.services || [];
         title = 'All Services';
     }
     
@@ -414,11 +681,29 @@ function applyServiceFilter() {
 }
 
 /**
+ * Reset Revenue Filter
+ */
+function resetRevenueFilter() {
+    const filterType = document.getElementById('revenueFilterType');
+    const resultsDiv = document.getElementById('revenueFilterResults');
+    
+    if (filterType) filterType.value = 'all';
+    if (resultsDiv) resultsDiv.innerHTML = '';
+    
+    toggleRevenueFilterInputs();
+    applyRevenueFilter();
+}
+
+/**
  * Reset Sales Filter
  */
 function resetSalesFilter() {
-    document.getElementById('salesFilterType').value = 'all';
-    document.getElementById('salesFilterResults').innerHTML = '';
+    const filterType = document.getElementById('salesFilterType');
+    const resultsDiv = document.getElementById('salesFilterResults');
+    
+    if (filterType) filterType.value = 'all';
+    if (resultsDiv) resultsDiv.innerHTML = '';
+    
     toggleSalesFilterInputs();
     applySalesFilter();
 }
@@ -427,8 +712,12 @@ function resetSalesFilter() {
  * Reset Service Filter
  */
 function resetServiceFilter() {
-    document.getElementById('serviceFilterType').value = 'all';
-    document.getElementById('serviceFilterResults').innerHTML = '';
+    const filterType = document.getElementById('serviceFilterType');
+    const resultsDiv = document.getElementById('serviceFilterResults');
+    
+    if (filterType) filterType.value = 'all';
+    if (resultsDiv) resultsDiv.innerHTML = '';
+    
     toggleServiceFilterInputs();
     applyServiceFilter();
 }
@@ -478,37 +767,54 @@ function loadModalTemplates() {
         <div id="addWatchModal" class="modal">
             <div class="modal-content">
                 <span class="close" onclick="closeModal('addWatchModal')">&times;</span>
-                <h2>Add New Watch</h2>
+                <h2>Add New Item</h2>
                 <form onsubmit="InventoryModule.addNewWatch(event)">
+                    <div class="grid grid-2">
+                        <div class="form-group">
+                            <label>Code:</label>
+                            <input type="text" id="watchCode" required placeholder="Auto-generated">
+                        </div>
+                        <div class="form-group">
+                            <label>Type:</label>
+                            <select id="watchType" required>
+                                <option value="">Select Type</option>
+                                <option value="Watch">Watch</option>
+                                <option value="Clock">Clock</option>
+                                <option value="Timepiece">Timepiece</option>
+                                <option value="Strap">Strap</option>
+                                <option value="Battery">Battery</option>
+                            </select>
+                        </div>
+                    </div>
                     <div class="grid grid-2">
                         <div class="form-group">
                             <label>Brand:</label>
                             <input type="text" id="watchBrand" required onchange="InventoryModule.updateWatchCode()">
                         </div>
                         <div class="form-group">
-                            <label>Code:</label>
-                            <input type="text" id="watchCode" required placeholder="Auto-generated">
+                            <label>Model:</label>
+                            <input type="text" id="watchModel" required>
                         </div>
                     </div>
-                    <div class="form-group">
-                        <label>Model:</label>
-                        <input type="text" id="watchModel" required>
-                    </div>
                     <div class="grid grid-2">
+                        <div class="form-group">
+                            <label>Size:</label>
+                            <input type="text" id="watchSize" required placeholder="e.g., 40mm, 42mm">
+                        </div>
                         <div class="form-group">
                             <label>Price (₹):</label>
                             <input type="number" id="watchPrice" required min="0" step="0.01">
                         </div>
-                        <div class="form-group">
-                            <label>Quantity:</label>
-                            <input type="number" id="watchQuantity" value="1" required min="1">
-                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Quantity:</label>
+                        <input type="number" id="watchQuantity" value="1" required min="1">
                     </div>
                     <div class="form-group">
                         <label>Description:</label>
                         <textarea id="watchDescription" rows="3"></textarea>
                     </div>
-                    <button type="submit" class="btn">Add Watch</button>
+                    <button type="submit" class="btn">Add Item</button>
                 </form>
             </div>
         </div>
@@ -520,7 +826,6 @@ function loadModalTemplates() {
                 <h2>Add Customer</h2>
                 <form onsubmit="CustomerModule.addNewCustomer(event)">
                     <div class="form-group">
-                        <label>Name:</label>
                         <input type="text" id="customerName" required>
                     </div>
                     <div class="form-group">
@@ -643,8 +948,11 @@ function initializeApp() {
         setupEventListeners();
         
         // Ensure login screen is shown initially
-        document.getElementById('loginScreen').style.display = 'flex';
-        document.getElementById('mainApp').classList.remove('logged-in');
+        const loginScreen = document.getElementById('loginScreen');
+        const mainApp = document.getElementById('mainApp');
+        
+        if (loginScreen) loginScreen.style.display = 'flex';
+        if (mainApp) mainApp.classList.remove('logged-in');
         
         console.log('Application initialized successfully');
     } catch (error) {
@@ -661,18 +969,31 @@ window.closeModal = closeModal;
 window.deleteItem = deleteItem;
 window.updateDashboard = updateDashboard;
 window.confirmTransaction = confirmTransaction;
+window.openRevenueAnalytics = openRevenueAnalytics;
 window.openSalesFilter = openSalesFilter;
 window.openServiceFilter = openServiceFilter;
+window.toggleRevenueFilterInputs = toggleRevenueFilterInputs;
 window.toggleSalesFilterInputs = toggleSalesFilterInputs;
 window.toggleServiceFilterInputs = toggleServiceFilterInputs;
+window.applyRevenueFilter = applyRevenueFilter;
 window.applySalesFilter = applySalesFilter;
 window.applyServiceFilter = applyServiceFilter;
+window.resetRevenueFilter = resetRevenueFilter;
 window.resetSalesFilter = resetSalesFilter;
 window.resetServiceFilter = resetServiceFilter;
 
 // Assign authentication functions to global scope
-window.handleLogin = AuthModule.handleLogin;
-window.logout = AuthModule.logout;
+window.handleLogin = function(event) {
+    if (window.AuthModule) {
+        AuthModule.handleLogin(event);
+    }
+};
+
+window.logout = function() {
+    if (window.AuthModule) {
+        AuthModule.logout();
+    }
+};
 
 // Assign functions that need to be globally accessible
 window.openAddUserModal = function() {
@@ -814,6 +1135,8 @@ window.AppController = {
     updateDashboard,
     updateSectionData,
     initializeApp,
+    openRevenueAnalytics,
     openSalesFilter,
-    openServiceFilter
+    openServiceFilter,
+    getTodayRevenue
 };

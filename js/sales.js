@@ -1,4 +1,4 @@
-// ZEDSON WATCHCRAFT - Sales Management Module (Updated with Discount Feature)
+// ZEDSON WATCHCRAFT - Sales Management Module (Fully Fixed)
 
 /**
  * Sales Transaction Management System
@@ -20,10 +20,21 @@ function openNewSaleModal() {
     console.log('Opening New Sale Modal');
     
     // Populate customer dropdown
-    CustomerModule.populateCustomerDropdown('saleCustomer');
+    if (window.CustomerModule && CustomerModule.populateCustomerDropdown) {
+        CustomerModule.populateCustomerDropdown('saleCustomer');
+    }
     
     // Populate watch dropdown
     populateWatchDropdown('saleWatch');
+    
+    // Reset form
+    const form = document.querySelector('#newSaleModal form');
+    if (form) {
+        form.reset();
+    }
+    
+    // Reset calculation displays
+    updateCalculationDisplay();
     
     document.getElementById('newSaleModal').style.display = 'block';
 }
@@ -35,7 +46,7 @@ function populateWatchDropdown(selectId) {
     const select = document.getElementById(selectId);
     if (!select) return;
     
-    select.innerHTML = '<option value="">Select Watch</option>';
+    select.innerHTML = '<option value="">Select Item</option>';
     
     if (window.InventoryModule && InventoryModule.watches) {
         const availableWatches = InventoryModule.getAvailableWatches();
@@ -62,6 +73,7 @@ function searchWatchByCode() {
     if (!enteredCode) {
         watchSelect.value = '';
         priceInput.value = '';
+        updateCalculationDisplay();
         return;
     }
     
@@ -73,11 +85,12 @@ function searchWatchByCode() {
     if (watchOption) {
         watchSelect.value = watchOption.value;
         priceInput.value = watchOption.dataset.price;
-        calculateTotalAmount();
+        updateCalculationDisplay();
     } else {
         watchSelect.value = '';
         priceInput.value = '';
-        Utils.showNotification('Watch with this code not found or not available');
+        updateCalculationDisplay();
+        Utils.showNotification('Item with this code not found or not available');
     }
 }
 
@@ -100,51 +113,28 @@ function updateSalePrice() {
             priceInput.value = '';
             if (codeInput) codeInput.value = '';
         }
-        calculateTotalAmount();
+        updateCalculationDisplay();
     }
 }
 
 /**
- * Calculate discount amount
+ * Update calculation display
  */
-function calculateDiscount() {
-    const discountType = document.getElementById('saleDiscountType').value;
-    const discountValue = parseFloat(document.getElementById('saleDiscountValue').value) || 0;
-    const price = parseFloat(document.getElementById('salePrice').value) || 0;
-    const quantity = parseInt(document.getElementById('saleQuantity').value) || 1;
+function updateCalculationDisplay() {
+    const price = parseFloat(document.getElementById('salePrice')?.value) || 0;
+    const quantity = parseInt(document.getElementById('saleQuantity')?.value) || 1;
+    const discountType = document.getElementById('saleDiscountType')?.value || '';
+    const discountValue = parseFloat(document.getElementById('saleDiscountValue')?.value) || 0;
     
     const subtotal = price * quantity;
     let discountAmount = 0;
     
     if (discountType === 'percentage') {
-        if (discountValue > 100) {
-            Utils.showNotification('Discount percentage cannot exceed 100%');
-            document.getElementById('saleDiscountValue').value = 100;
-            discountAmount = subtotal;
-        } else {
-            discountAmount = (subtotal * discountValue) / 100;
-        }
+        discountAmount = Math.min((subtotal * discountValue) / 100, subtotal);
     } else if (discountType === 'amount') {
-        if (discountValue > subtotal) {
-            Utils.showNotification('Discount amount cannot exceed subtotal');
-            document.getElementById('saleDiscountValue').value = subtotal;
-            discountAmount = subtotal;
-        } else {
-            discountAmount = discountValue;
-        }
+        discountAmount = Math.min(discountValue, subtotal);
     }
     
-    return Math.min(discountAmount, subtotal);
-}
-
-/**
- * Calculate total amount including discount
- */
-function calculateTotalAmount() {
-    const price = parseFloat(document.getElementById('salePrice').value) || 0;
-    const quantity = parseInt(document.getElementById('saleQuantity').value) || 1;
-    const subtotal = price * quantity;
-    const discountAmount = calculateDiscount();
     const totalAmount = subtotal - discountAmount;
     
     // Update display fields
@@ -162,6 +152,8 @@ function calculateTotalAmount() {
  */
 function addNewSale(event) {
     event.preventDefault();
+    
+    console.log('Adding new sale...');
     
     if (!AuthModule.hasPermission('sales')) {
         Utils.showNotification('You do not have permission to create sales.');
@@ -203,7 +195,7 @@ function addNewSale(event) {
     }
 
     if (!watch) {
-        Utils.showNotification('Selected watch not found');
+        Utils.showNotification('Selected item not found');
         return;
     }
 
@@ -214,7 +206,14 @@ function addNewSale(event) {
 
     // Calculate amounts
     const subtotal = price * quantity;
-    const discountAmount = calculateDiscount();
+    let discountAmount = 0;
+    
+    if (discountType === 'percentage') {
+        discountAmount = Math.min((subtotal * discountValue) / 100, subtotal);
+    } else if (discountType === 'amount') {
+        discountAmount = Math.min(discountValue, subtotal);
+    }
+    
     const totalAmount = subtotal - discountAmount;
 
     // Create sale object with time and discount details
@@ -263,10 +262,12 @@ function addNewSale(event) {
     
     // Update displays
     renderSalesTable();
-    updateDashboard();
+    if (window.updateDashboard) {
+        updateDashboard();
+    }
     
     // Close modal and reset form
-    closeModal('newSaleModal');
+    document.getElementById('newSaleModal').style.display = 'none';
     event.target.reset();
     
     Utils.showNotification(`Sale recorded successfully! Sale ID: ${newSale.id}. Total: ${Utils.formatCurrency(totalAmount)}. Invoice automatically generated.`);
@@ -295,7 +296,7 @@ function editSale(saleId) {
     editModal.style.display = 'block';
     editModal.innerHTML = `
         <div class="modal-content">
-            <span class="close" onclick="closeEditSaleModal()">&times;</span>
+            <span class="close" onclick="SalesModule.closeEditSaleModal()">&times;</span>
             <h2>Edit Sale</h2>
             <form onsubmit="SalesModule.updateSale(event, ${saleId})">
                 <div class="form-group">
@@ -305,25 +306,25 @@ function editSale(saleId) {
                     </select>
                 </div>
                 <div class="form-group">
-                    <label>Watch:</label>
-                    <select id="editSaleWatch" required onchange="updateEditSalePrice()">
-                        <option value="">Select Watch</option>
+                    <label>Item:</label>
+                    <select id="editSaleWatch" required onchange="SalesModule.updateEditSalePrice()">
+                        <option value="">Select Item</option>
                     </select>
                 </div>
                 <div class="grid grid-2">
                     <div class="form-group">
                         <label>Quantity:</label>
-                        <input type="number" id="editSaleQuantity" value="${sale.quantity}" required min="1" onchange="calculateEditTotalAmount()">
+                        <input type="number" id="editSaleQuantity" value="${sale.quantity}" required min="1" onchange="SalesModule.calculateEditTotalAmount()">
                     </div>
                     <div class="form-group">
                         <label>Price (₹):</label>
-                        <input type="number" id="editSalePrice" value="${sale.price}" required min="0" step="0.01" onchange="calculateEditTotalAmount()">
+                        <input type="number" id="editSalePrice" value="${sale.price}" required min="0" step="0.01" onchange="SalesModule.calculateEditTotalAmount()">
                     </div>
                 </div>
                 <div class="grid grid-2">
                     <div class="form-group">
                         <label>Discount Type:</label>
-                        <select id="editSaleDiscountType" onchange="calculateEditTotalAmount()">
+                        <select id="editSaleDiscountType" onchange="SalesModule.calculateEditTotalAmount()">
                             <option value="">No Discount</option>
                             <option value="percentage" ${sale.discountType === 'percentage' ? 'selected' : ''}>Percentage (%)</option>
                             <option value="amount" ${sale.discountType === 'amount' ? 'selected' : ''}>Amount (₹)</option>
@@ -331,7 +332,7 @@ function editSale(saleId) {
                     </div>
                     <div class="form-group">
                         <label>Discount Value:</label>
-                        <input type="number" id="editSaleDiscountValue" value="${sale.discountValue || 0}" min="0" step="0.01" onchange="calculateEditTotalAmount()">
+                        <input type="number" id="editSaleDiscountValue" value="${sale.discountValue || 0}" min="0" step="0.01" onchange="SalesModule.calculateEditTotalAmount()">
                     </div>
                 </div>
                 <div class="form-group">
@@ -358,7 +359,7 @@ function editSale(saleId) {
                     </div>
                 </div>
                 <button type="submit" class="btn">Update Sale</button>
-                <button type="button" class="btn btn-danger" onclick="closeEditSaleModal()">Cancel</button>
+                <button type="button" class="btn btn-danger" onclick="SalesModule.closeEditSaleModal()">Cancel</button>
             </form>
         </div>
     `;
@@ -414,7 +415,7 @@ function populateEditWatchDropdown(selectId) {
     const select = document.getElementById(selectId);
     if (!select) return;
     
-    select.innerHTML = '<option value="">Select Watch</option>';
+    select.innerHTML = '<option value="">Select Item</option>';
     
     if (window.InventoryModule && InventoryModule.watches) {
         InventoryModule.watches.forEach(watch => {
@@ -481,7 +482,7 @@ function updateSale(event, saleId) {
     const watch = InventoryModule.getWatchById(watchId);
     
     if (!customer || !watch) {
-        Utils.showNotification('Selected customer or watch not found');
+        Utils.showNotification('Selected customer or item not found');
         return;
     }
 
@@ -528,7 +529,9 @@ function updateSale(event, saleId) {
     CustomerModule.incrementCustomerPurchases(customerId);
 
     renderSalesTable();
-    updateDashboard();
+    if (window.updateDashboard) {
+        updateDashboard();
+    }
     closeEditSaleModal();
     Utils.showNotification('Sale updated successfully!');
 }
@@ -557,7 +560,9 @@ function deleteSale(saleId) {
         sales = sales.filter(s => s.id !== saleId);
         
         renderSalesTable();
-        updateDashboard();
+        if (window.updateDashboard) {
+            updateDashboard();
+        }
         Utils.showNotification('Sale deleted successfully!');
     }
 }
@@ -729,12 +734,12 @@ function renderSalesTable() {
             </td>
             <td><span class="status available">${Utils.sanitizeHtml(sale.paymentMethod)}</span></td>
             <td>
-                <button class="btn" onclick="editSale(${sale.id})" 
+                <button class="btn" onclick="SalesModule.editSale(${sale.id})" 
                     ${!AuthModule.hasPermission('sales') ? 'disabled' : ''}>Edit</button>
-                <button class="btn btn-danger" onclick="confirmTransaction('Are you sure you want to delete this sale?', () => deleteSale(${sale.id}))" 
+                <button class="btn btn-danger" onclick="confirmTransaction('Are you sure you want to delete this sale?', () => SalesModule.deleteSale(${sale.id}))" 
                     ${!AuthModule.hasPermission('sales') ? 'disabled' : ''}>Delete</button>
                 ${hasInvoice ? 
-                    `<button class="btn btn-success" onclick="viewSaleInvoice(${sale.id})" title="View Invoice">Invoice</button>` : 
+                    `<button class="btn btn-success" onclick="SalesModule.viewSaleInvoice(${sale.id})" title="View Invoice">Invoice</button>` : 
                     ''
                 }
             </td>
@@ -759,112 +764,13 @@ function initializeSales() {
     console.log('Sales module initialized');
 }
 
-// Load modal template for sales with discount functionality
-function loadSalesModal() {
-    const modalHtml = `
-        <!-- New Sale Modal -->
-        <div id="newSaleModal" class="modal">
-            <div class="modal-content">
-                <span class="close" onclick="closeModal('newSaleModal')">&times;</span>
-                <h2>New Sale</h2>
-                <form onsubmit="SalesModule.addNewSale(event)">
-                    <div class="form-group">
-                        <label>Customer:</label>
-                        <select id="saleCustomer" required>
-                            <option value="">Select Customer</option>
-                        </select>
-                    </div>
-                    <div class="grid grid-2">
-                        <div class="form-group">
-                            <label>Watch Code:</label>
-                            <input type="text" id="saleWatchCode" placeholder="Enter watch code" onchange="searchWatchByCode()" style="text-transform: uppercase;">
-                        </div>
-                        <div class="form-group">
-                            <label>Watch:</label>
-                            <select id="saleWatch" required onchange="updateSalePrice()">
-                                <option value="">Select Watch</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="grid grid-2">
-                        <div class="form-group">
-                            <label>Quantity:</label>
-                            <input type="number" id="saleQuantity" value="1" required min="1" onchange="calculateTotalAmount()">
-                        </div>
-                        <div class="form-group">
-                            <label>Price (₹):</label>
-                            <input type="number" id="salePrice" required min="0" step="0.01" readonly style="background-color: #f0f0f0;">
-                        </div>
-                    </div>
-                    <div class="grid grid-2">
-                        <div class="form-group">
-                            <label>Discount Type:</label>
-                            <select id="saleDiscountType" onchange="calculateTotalAmount()">
-                                <option value="">No Discount</option>
-                                <option value="percentage">Percentage (%)</option>
-                                <option value="amount">Amount (₹)</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Discount Value:</label>
-                            <input type="number" id="saleDiscountValue" value="0" min="0" step="0.01" onchange="calculateTotalAmount()">
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label>Payment Method:</label>
-                        <select id="salePaymentMethod" required>
-                            <option value="">Select Payment Method</option>
-                            <option value="Cash">Cash</option>
-                            <option value="Card">Card</option>
-                            <option value="UPI">UPI</option>
-                            <option value="Bank Transfer">Bank Transfer</option>
-                        </select>
-                    </div>
-                    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 15px 0;">
-                        <div style="display: flex; justify-content: space-between; margin: 5px 0;">
-                            <span>Subtotal:</span>
-                            <span id="saleSubtotal">₹0.00</span>
-                        </div>
-                        <div style="display: flex; justify-content: space-between; margin: 5px 0;">
-                            <span>Discount:</span>
-                            <span id="saleDiscountAmount">₹0.00</span>
-                        </div>
-                        <div style="display: flex; justify-content: space-between; margin: 5px 0; font-weight: bold; border-top: 1px solid #ddd; padding-top: 5px;">
-                            <span>Total Amount:</span>
-                            <span id="saleTotalAmount">₹0.00</span>
-                        </div>
-                    </div>
-                    <button type="submit" class="btn">Record Sale</button>
-                </form>
-            </div>
-        </div>
-    `;
-    
-    // Add to modals container if it exists
-    const modalsContainer = document.getElementById('modals-container');
-    if (modalsContainer) {
-        modalsContainer.innerHTML += modalHtml;
-    }
-}
-
-// Auto-load modal when module loads
-document.addEventListener('DOMContentLoaded', function() {
-    setTimeout(() => {
-        loadSalesModal();
-        if (window.SalesModule) {
-            SalesModule.initializeSales();
-        }
-    }, 100);
-});
-
 // Export functions for global use
 window.SalesModule = {
     openNewSaleModal,
     populateWatchDropdown,
     searchWatchByCode,
     updateSalePrice,
-    calculateDiscount,
-    calculateTotalAmount,
+    updateCalculationDisplay,
     addNewSale,
     editSale,
     updateSale,
@@ -880,77 +786,116 @@ window.SalesModule = {
     renderSalesTable,
     exportSales,
     initializeSales,
+    calculateEditTotalAmount,
+    closeEditSaleModal,
+    updateEditSalePrice,
     sales // For access by other modules
 };
 
-// Make functions globally available
+// Make functions globally available for modal events
 window.searchWatchByCode = function() {
-    if (window.SalesModule) {
-        SalesModule.searchWatchByCode();
-    }
+    SalesModule.searchWatchByCode();
 };
 
 window.updateSalePrice = function() {
-    if (window.SalesModule) {
-        SalesModule.updateSalePrice();
-    }
+    SalesModule.updateSalePrice();
 };
 
-window.calculateTotalAmount = function() {
-    if (window.SalesModule) {
-        SalesModule.calculateTotalAmount();
-    }
+window.updateCalculationDisplay = function() {
+    SalesModule.updateCalculationDisplay();
 };
 
-window.calculateEditTotalAmount = function() {
-    const price = parseFloat(document.getElementById('editSalePrice').value) || 0;
-    const quantity = parseInt(document.getElementById('editSaleQuantity').value) || 1;
-    const discountType = document.getElementById('editSaleDiscountType').value;
-    const discountValue = parseFloat(document.getElementById('editSaleDiscountValue').value) || 0;
-    
-    const subtotal = price * quantity;
-    let discountAmount = 0;
-    
-    if (discountType === 'percentage') {
-        discountAmount = Math.min((subtotal * discountValue) / 100, subtotal);
-    } else if (discountType === 'amount') {
-        discountAmount = Math.min(discountValue, subtotal);
+// Auto-load modal when module loads
+document.addEventListener('DOMContentLoaded', function() {
+    // Create the sales modal
+    const modalsContainer = document.getElementById('modals-container');
+    if (modalsContainer && !document.getElementById('newSaleModal')) {
+        const modalHtml = `
+            <!-- New Sale Modal -->
+            <div id="newSaleModal" class="modal">
+                <div class="modal-content">
+                    <span class="close" onclick="document.getElementById('newSaleModal').style.display='none'">&times;</span>
+                    <h2>New Sale</h2>
+                    <form onsubmit="SalesModule.addNewSale(event)">
+                        <div class="form-group">
+                            <label>Customer:</label>
+                            <select id="saleCustomer" required>
+                                <option value="">Select Customer</option>
+                            </select>
+                        </div>
+                        <div class="grid grid-2">
+                            <div class="form-group">
+                                <label>Code:</label>
+                                <input type="text" id="saleWatchCode" placeholder="Enter item code" onchange="searchWatchByCode()" style="text-transform: uppercase;">
+                            </div>
+                            <div class="form-group">
+                                <label>Item:</label>
+                                <select id="saleWatch" required onchange="updateSalePrice()">
+                                    <option value="">Select Item</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="grid grid-2">
+                            <div class="form-group">
+                                <label>Quantity:</label>
+                                <input type="number" id="saleQuantity" value="1" required min="1" onchange="updateCalculationDisplay()">
+                            </div>
+                            <div class="form-group">
+                                <label>Price (₹):</label>
+                                <input type="number" id="salePrice" required min="0" step="0.01" readonly style="background-color: #f0f0f0;">
+                            </div>
+                        </div>
+                        <div class="grid grid-2">
+                            <div class="form-group">
+                                <label>Discount Type:</label>
+                                <select id="saleDiscountType" onchange="updateCalculationDisplay()">
+                                    <option value="">No Discount</option>
+                                    <option value="percentage">Percentage (%)</option>
+                                    <option value="amount">Amount (₹)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Discount Value:</label>
+                                <input type="number" id="saleDiscountValue" value="0" min="0" step="0.01" onchange="updateCalculationDisplay()">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Payment Method:</label>
+                            <select id="salePaymentMethod" required>
+                                <option value="">Select Payment Method</option>
+                                <option value="Cash">Cash</option>
+                                <option value="Card">Card</option>
+                                <option value="UPI">UPI</option>
+                                <option value="Bank Transfer">Bank Transfer</option>
+                            </select>
+                        </div>
+                        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 15px 0;">
+                            <div style="display: flex; justify-content: space-between; margin: 5px 0;">
+                                <span>Subtotal:</span>
+                                <span id="saleSubtotal">₹0.00</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin: 5px 0;">
+                                <span>Discount:</span>
+                                <span id="saleDiscountAmount">₹0.00</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin: 5px 0; font-weight: bold; border-top: 1px solid #ddd; padding-top: 5px;">
+                                <span>Total Amount:</span>
+                                <span id="saleTotalAmount">₹0.00</span>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn">Record Sale</button>
+                    </form>
+                </div>
+            </div>
+        `;
+        
+        modalsContainer.innerHTML += modalHtml;
     }
     
-    const totalAmount = subtotal - discountAmount;
-    
-    // Update display fields
-    const subtotalDisplay = document.getElementById('editSaleSubtotal');
-    const discountDisplay = document.getElementById('editSaleDiscountAmount');
-    const totalDisplay = document.getElementById('editSaleTotalAmount');
-    
-    if (subtotalDisplay) subtotalDisplay.textContent = Utils.formatCurrency(subtotal);
-    if (discountDisplay) discountDisplay.textContent = Utils.formatCurrency(discountAmount);
-    if (totalDisplay) totalDisplay.textContent = Utils.formatCurrency(totalAmount);
-};
-
-window.updateEditSalePrice = function() {
-    const watchSelect = document.getElementById('editSaleWatch');
-    const priceInput = document.getElementById('editSalePrice');
-    
-    if (watchSelect && priceInput) {
-        const selectedOption = watchSelect.options[watchSelect.selectedIndex];
-        if (selectedOption && selectedOption.dataset.price) {
-            priceInput.value = selectedOption.dataset.price;
-            calculateEditTotalAmount();
+    // Initialize sales module after a short delay
+    setTimeout(() => {
+        if (window.SalesModule) {
+            SalesModule.initializeSales();
         }
-    }
-};
-
-window.closeEditSaleModal = function() {
-    const modal = document.getElementById('editSaleModal');
-    if (modal) {
-        modal.remove();
-    }
-};
-
-window.viewSaleInvoice = function(saleId) {
-    if (window.SalesModule) {
-        SalesModule.viewSaleInvoice(saleId);
-    }
-};
+    }, 100);
+});

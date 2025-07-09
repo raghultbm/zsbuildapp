@@ -1,14 +1,15 @@
-// ZEDSON WATCHCRAFT - Inventory Management Module (Updated with Size Field)
+// ZEDSON WATCHCRAFT - Inventory Management Module (Updated with Type Field)
 
 /**
  * Inventory and Watch Management System
  */
 
-// Watch inventory data - Updated with SIZE field
+// Watch inventory data - Updated with TYPE field
 let watches = [
     { 
         id: 1, 
         code: "ROL001", 
+        type: "Watch",
         brand: "Rolex", 
         model: "Submariner", 
         size: "40mm",
@@ -20,6 +21,7 @@ let watches = [
     { 
         id: 2, 
         code: "OMG001", 
+        type: "Watch",
         brand: "Omega", 
         model: "Speedmaster", 
         size: "42mm",
@@ -31,6 +33,7 @@ let watches = [
     { 
         id: 3, 
         code: "CAS001", 
+        type: "Watch",
         brand: "Casio", 
         model: "G-Shock", 
         size: "44mm",
@@ -62,10 +65,10 @@ function generateWatchCode(brand) {
  */
 function openAddWatchModal() {
     if (!AuthModule.hasPermission('inventory')) {
-        Utils.showNotification('You do not have permission to add watches.');
+        Utils.showNotification('You do not have permission to add items.');
         return;
     }
-    console.log('Opening Add Watch Modal');
+    console.log('Opening Add Item Modal');
     document.getElementById('addWatchModal').style.display = 'block';
 }
 
@@ -89,12 +92,13 @@ function addNewWatch(event) {
     event.preventDefault();
     
     if (!AuthModule.hasPermission('inventory')) {
-        Utils.showNotification('You do not have permission to add watches.');
+        Utils.showNotification('You do not have permission to add items.');
         return;
     }
 
     // Get form data
     const code = document.getElementById('watchCode').value.trim();
+    const type = document.getElementById('watchType').value;
     const brand = document.getElementById('watchBrand').value.trim();
     const model = document.getElementById('watchModel').value.trim();
     const size = document.getElementById('watchSize').value.trim();
@@ -103,7 +107,7 @@ function addNewWatch(event) {
     const description = document.getElementById('watchDescription').value.trim();
     
     // Validate input
-    if (!code || !brand || !model || !size || !price || !quantity) {
+    if (!code || !type || !brand || !model || !size || !price || !quantity) {
         Utils.showNotification('Please fill in all required fields');
         return;
     }
@@ -120,7 +124,7 @@ function addNewWatch(event) {
 
     // Check if code already exists
     if (watches.find(w => w.code === code)) {
-        Utils.showNotification('Watch code already exists. Please use a different code.');
+        Utils.showNotification('Item code already exists. Please use a different code.');
         return;
     }
 
@@ -128,6 +132,7 @@ function addNewWatch(event) {
     const newWatch = {
         id: nextWatchId++,
         code: code,
+        type: type,
         brand: brand,
         model: model,
         size: size,
@@ -150,8 +155,8 @@ function addNewWatch(event) {
     closeModal('addWatchModal');
     event.target.reset();
     
-    Utils.showNotification('Watch added successfully!');
-    console.log('Watch added:', newWatch);
+    Utils.showNotification('Item added successfully!');
+    console.log('Item added:', newWatch);
 }
 
 /**
@@ -159,13 +164,13 @@ function addNewWatch(event) {
  */
 function deleteWatch(watchId) {
     if (!AuthModule.hasPermission('inventory')) {
-        Utils.showNotification('You do not have permission to delete watches.');
+        Utils.showNotification('You do not have permission to delete items.');
         return;
     }
 
     const watch = watches.find(w => w.id === watchId);
     if (!watch) {
-        Utils.showNotification('Watch not found.');
+        Utils.showNotification('Item not found.');
         return;
     }
 
@@ -173,7 +178,7 @@ function deleteWatch(watchId) {
         watches = watches.filter(w => w.id !== watchId);
         renderWatchTable();
         updateDashboard();
-        Utils.showNotification('Watch deleted successfully!');
+        Utils.showNotification('Item deleted successfully!');
     }
 }
 
@@ -234,7 +239,7 @@ function getWatchById(watchId) {
 }
 
 /**
- * Search watches by code, brand, or model
+ * Search watches by code, type, brand, or model
  */
 function searchWatches(query) {
     const tbody = document.getElementById('watchTableBody');
@@ -253,7 +258,7 @@ function searchWatches(query) {
 }
 
 /**
- * Render watch table with S.No and Size columns
+ * Render watch table with S.No, Type and Size columns
  */
 function renderWatchTable() {
     const tbody = document.getElementById('watchTableBody');
@@ -262,15 +267,16 @@ function renderWatchTable() {
         return;
     }
     
-    console.log('Rendering watch table with', watches.length, 'watches');
+    console.log('Rendering watch table with', watches.length, 'items');
     tbody.innerHTML = '';
     
     watches.forEach((watch, index) => {
         const row = document.createElement('tr');
-        // Creating 9 columns to match the header: S.No, Code, Brand, Model, Size, Price, Quantity, Status, Actions
+        // Creating 10 columns to match the header: S.No, Code, Type, Brand, Model, Size, Price, Quantity, Status, Actions
         row.innerHTML = `
             <td class="serial-number">${index + 1}</td>
             <td><strong>${Utils.sanitizeHtml(watch.code)}</strong></td>
+            <td><span class="status pending">${Utils.sanitizeHtml(watch.type)}</span></td>
             <td>${Utils.sanitizeHtml(watch.brand)}</td>
             <td>${Utils.sanitizeHtml(watch.model)}</td>
             <td>${Utils.sanitizeHtml(watch.size)}</td>
@@ -291,7 +297,7 @@ function renderWatchTable() {
         tbody.appendChild(row);
     });
     
-    console.log('Watch table rendered successfully with Size column');
+    console.log('Watch table rendered successfully with Type column');
 }
 
 /**
@@ -318,17 +324,17 @@ function getInventoryStats() {
  */
 function editWatch(watchId) {
     if (!AuthModule.hasPermission('inventory')) {
-        Utils.showNotification('You do not have permission to edit watches.');
+        Utils.showNotification('You do not have permission to edit items.');
         return;
     }
 
     const watch = watches.find(w => w.id === watchId);
     if (!watch) {
-        Utils.showNotification('Watch not found.');
+        Utils.showNotification('Item not found.');
         return;
     }
 
-    // Create edit modal with Size field
+    // Create edit modal with Type field
     const editModal = document.createElement('div');
     editModal.className = 'modal';
     editModal.id = 'editWatchModal';
@@ -336,43 +342,53 @@ function editWatch(watchId) {
     editModal.innerHTML = `
         <div class="modal-content">
             <span class="close" onclick="closeModal('editWatchModal')">&times;</span>
-            <h2>Edit Watch</h2>
+            <h2>Edit Item</h2>
             <form onsubmit="InventoryModule.updateWatch(event, ${watchId})">
+                <div class="grid grid-2">
+                    <div class="form-group">
+                        <label>Code:</label>
+                        <input type="text" id="editWatchCode" value="${watch.code}" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Type:</label>
+                        <select id="editWatchType" required>
+                            <option value="Watch" ${watch.type === 'Watch' ? 'selected' : ''}>Watch</option>
+                            <option value="Clock" ${watch.type === 'Clock' ? 'selected' : ''}>Clock</option>
+                            <option value="Timepiece" ${watch.type === 'Timepiece' ? 'selected' : ''}>Timepiece</option>
+                            <option value="Strap" ${watch.type === 'Strap' ? 'selected' : ''}>Strap</option>
+                            <option value="Battery" ${watch.type === 'Battery' ? 'selected' : ''}>Battery</option>
+                        </select>
+                    </div>
+                </div>
                 <div class="grid grid-2">
                     <div class="form-group">
                         <label>Brand:</label>
                         <input type="text" id="editWatchBrand" value="${watch.brand}" required>
                     </div>
                     <div class="form-group">
-                        <label>Code:</label>
-                        <input type="text" id="editWatchCode" value="${watch.code}" required>
-                    </div>
-                </div>
-                <div class="grid grid-2">
-                    <div class="form-group">
                         <label>Model:</label>
                         <input type="text" id="editWatchModel" value="${watch.model}" required>
                     </div>
+                </div>
+                <div class="grid grid-2">
                     <div class="form-group">
                         <label>Size:</label>
                         <input type="text" id="editWatchSize" value="${watch.size}" required placeholder="e.g., 40mm, 42mm">
                     </div>
-                </div>
-                <div class="grid grid-2">
                     <div class="form-group">
                         <label>Price (₹):</label>
                         <input type="number" id="editWatchPrice" value="${watch.price}" required min="0" step="0.01">
                     </div>
-                    <div class="form-group">
-                        <label>Quantity:</label>
-                        <input type="number" id="editWatchQuantity" value="${watch.quantity}" required min="0">
-                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Quantity:</label>
+                    <input type="number" id="editWatchQuantity" value="${watch.quantity}" required min="0">
                 </div>
                 <div class="form-group">
                     <label>Description:</label>
                     <textarea id="editWatchDescription" rows="3">${watch.description || ''}</textarea>
                 </div>
-                <button type="submit" class="btn">Update Watch</button>
+                <button type="submit" class="btn">Update Item</button>
                 <button type="button" class="btn btn-danger" onclick="closeModal('editWatchModal')">Cancel</button>
             </form>
         </div>
@@ -389,11 +405,12 @@ function updateWatch(event, watchId) {
     
     const watch = watches.find(w => w.id === watchId);
     if (!watch) {
-        Utils.showNotification('Watch not found.');
+        Utils.showNotification('Item not found.');
         return;
     }
 
     const code = document.getElementById('editWatchCode').value.trim();
+    const type = document.getElementById('editWatchType').value;
     const brand = document.getElementById('editWatchBrand').value.trim();
     const model = document.getElementById('editWatchModel').value.trim();
     const size = document.getElementById('editWatchSize').value.trim();
@@ -402,19 +419,20 @@ function updateWatch(event, watchId) {
     const description = document.getElementById('editWatchDescription').value.trim();
 
     // Validate input
-    if (!code || !brand || !model || !size || !price || quantity < 0) {
+    if (!code || !type || !brand || !model || !size || !price || quantity < 0) {
         Utils.showNotification('Please fill in all required fields');
         return;
     }
 
     // Check if code already exists (excluding current watch)
     if (watches.find(w => w.code === code && w.id !== watchId)) {
-        Utils.showNotification('Watch code already exists. Please use a different code.');
+        Utils.showNotification('Item code already exists. Please use a different code.');
         return;
     }
 
     // Update watch
     watch.code = code;
+    watch.type = type;
     watch.brand = brand;
     watch.model = model;
     watch.size = size;
@@ -427,7 +445,7 @@ function updateWatch(event, watchId) {
     updateDashboard();
     closeModal('editWatchModal');
     document.getElementById('editWatchModal').remove();
-    Utils.showNotification('Watch updated successfully!');
+    Utils.showNotification('Item updated successfully!');
 }
 
 /**
@@ -445,50 +463,61 @@ function initializeInventory() {
     console.log('Inventory module initialized');
 }
 
-// Load modal template for inventory with Size field
+// Load modal template for inventory with Type field
 function loadInventoryModal() {
     const modalHtml = `
         <!-- Add Watch Modal -->
         <div id="addWatchModal" class="modal">
             <div class="modal-content">
                 <span class="close" onclick="closeModal('addWatchModal')">&times;</span>
-                <h2>Add New Watch</h2>
+                <h2>Add New Item</h2>
                 <form onsubmit="InventoryModule.addNewWatch(event)">
+                    <div class="grid grid-2">
+                        <div class="form-group">
+                            <label>Code:</label>
+                            <input type="text" id="watchCode" required placeholder="Auto-generated">
+                        </div>
+                        <div class="form-group">
+                            <label>Type:</label>
+                            <select id="watchType" required>
+                                <option value="">Select Type</option>
+                                <option value="Watch">Watch</option>
+                                <option value="Clock">Clock</option>
+                                <option value="Timepiece">Timepiece</option>
+                                <option value="Strap">Strap</option>
+                                <option value="Battery">Battery</option>
+                            </select>
+                        </div>
+                    </div>
                     <div class="grid grid-2">
                         <div class="form-group">
                             <label>Brand:</label>
                             <input type="text" id="watchBrand" required onchange="InventoryModule.updateWatchCode()">
                         </div>
                         <div class="form-group">
-                            <label>Code:</label>
-                            <input type="text" id="watchCode" required placeholder="Auto-generated">
-                        </div>
-                    </div>
-                    <div class="grid grid-2">
-                        <div class="form-group">
                             <label>Model:</label>
                             <input type="text" id="watchModel" required>
                         </div>
+                    </div>
+                    <div class="grid grid-2">
                         <div class="form-group">
                             <label>Size:</label>
                             <input type="text" id="watchSize" required placeholder="e.g., 40mm, 42mm">
                         </div>
-                    </div>
-                    <div class="grid grid-2">
                         <div class="form-group">
                             <label>Price (₹):</label>
                             <input type="number" id="watchPrice" required min="0" step="0.01">
                         </div>
-                        <div class="form-group">
-                            <label>Quantity:</label>
-                            <input type="number" id="watchQuantity" value="1" required min="1">
-                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Quantity:</label>
+                        <input type="number" id="watchQuantity" value="1" required min="1">
                     </div>
                     <div class="form-group">
                         <label>Description:</label>
                         <textarea id="watchDescription" rows="3"></textarea>
                     </div>
-                    <button type="submit" class="btn">Add Watch</button>
+                    <button type="submit" class="btn">Add Item</button>
                 </form>
             </div>
         </div>
