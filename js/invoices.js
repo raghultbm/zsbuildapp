@@ -1,4 +1,4 @@
-// ZEDSON WATCHCRAFT - Invoice Management Module (Fixed)
+// ZEDSON WATCHCRAFT - Invoice Management Module (Fixed and Updated)
 
 /**
  * Complete Invoice Generation and Management System
@@ -44,7 +44,7 @@ function generateSalesInvoice(saleData) {
         quantity: saleData.quantity,
         price: saleData.price,
         paymentMethod: saleData.paymentMethod,
-        discount: 0
+        discountAmount: saleData.discountAmount || 0
     };
 
     invoices.push(invoiceData);
@@ -72,7 +72,7 @@ function generateServiceAcknowledgement(serviceData) {
         id: nextInvoiceId++,
         invoiceNo: Utils.generateBillNumber('ACK'),
         type: 'Service Acknowledgement',
-        subType: 'Watch Received',
+        subType: 'Item Received',
         date: Utils.formatDate(new Date()),
         timestamp: Utils.getCurrentTimestamp(),
         customerId: serviceData.customerId,
@@ -85,10 +85,11 @@ function generateServiceAcknowledgement(serviceData) {
         status: 'generated',
         createdBy: AuthModule.getCurrentUser().username,
         
-        // Service specific data
+        // Service specific data with type
         watchName: serviceData.watchName,
         brand: serviceData.brand,
         model: serviceData.model,
+        type: serviceData.type,
         dialColor: serviceData.dialColor,
         movementNo: serviceData.movementNo,
         gender: serviceData.gender,
@@ -137,10 +138,11 @@ function generateServiceCompletionInvoice(serviceData) {
         status: 'generated',
         createdBy: AuthModule.getCurrentUser().username,
         
-        // Service specific data
+        // Service specific data with type
         watchName: serviceData.watchName,
         brand: serviceData.brand,
         model: serviceData.model,
+        type: serviceData.type,
         dialColor: serviceData.dialColor,
         movementNo: serviceData.movementNo,
         gender: serviceData.gender,
@@ -161,7 +163,7 @@ function generateServiceCompletionInvoice(serviceData) {
 }
 
 /**
- * View Invoice (Read-only) - Uses new templates
+ * View Invoice (Read-only) - Uses new templates with proper error handling
  */
 function viewInvoice(invoiceId) {
     const invoice = invoices.find(inv => inv.id === invoiceId);
@@ -172,26 +174,43 @@ function viewInvoice(invoiceId) {
 
     let invoiceHTML = '';
 
-    if (invoice.type === 'Sales') {
-        // Use new sales invoice template
-        if (window.InvoiceTemplates && window.InvoiceTemplates.createSalesInvoiceHTML) {
-            invoiceHTML = window.InvoiceTemplates.createSalesInvoiceHTML(invoice);
+    try {
+        if (invoice.type === 'Sales') {
+            // Use new sales invoice template
+            if (window.InvoiceTemplates && window.InvoiceTemplates.createSalesInvoiceHTML) {
+                invoiceHTML = window.InvoiceTemplates.createSalesInvoiceHTML(invoice);
+            } else {
+                Utils.showNotification('Sales invoice template not available');
+                return;
+            }
+        } else if (invoice.type === 'Service Completion') {
+            // Use new service completion template
+            if (window.InvoiceTemplates && window.InvoiceTemplates.createServiceCompletionHTML) {
+                invoiceHTML = window.InvoiceTemplates.createServiceCompletionHTML(invoice);
+            } else {
+                Utils.showNotification('Service completion template not available');
+                return;
+            }
         } else {
-            Utils.showNotification('Invoice template not available');
+            Utils.showNotification('Unknown invoice type');
             return;
         }
-    } else if (invoice.type === 'Service Completion') {
-        // Use new service completion template
-        if (window.InvoiceTemplates && window.InvoiceTemplates.createServiceCompletionHTML) {
-            invoiceHTML = window.InvoiceTemplates.createServiceCompletionHTML(invoice);
-        } else {
-            Utils.showNotification('Invoice template not available');
-            return;
-        }
-    }
 
-    document.getElementById('invoicePreviewContent').innerHTML = invoiceHTML;
-    document.getElementById('invoicePreviewModal').style.display = 'block';
+        const previewContent = document.getElementById('invoicePreviewContent');
+        const previewModal = document.getElementById('invoicePreviewModal');
+        
+        if (!previewContent || !previewModal) {
+            Utils.showNotification('Invoice preview modal not found');
+            return;
+        }
+
+        previewContent.innerHTML = invoiceHTML;
+        previewModal.style.display = 'block';
+        
+    } catch (error) {
+        console.error('Error generating invoice:', error);
+        Utils.showNotification('Error generating invoice. Please try again.');
+    }
 }
 
 /**
@@ -209,16 +228,37 @@ function viewServiceAcknowledgement(serviceId) {
         return;
     }
 
-    // Create simple acknowledgement view
-    const ackHTML = createServiceAcknowledgementHTML(acknowledgement);
-    document.getElementById('invoicePreviewContent').innerHTML = ackHTML;
-    document.getElementById('invoicePreviewModal').style.display = 'block';
+    try {
+        let ackHTML = '';
+        
+        // Use template if available, otherwise use fallback
+        if (window.InvoiceTemplates && window.InvoiceTemplates.createServiceAcknowledgementHTML) {
+            ackHTML = window.InvoiceTemplates.createServiceAcknowledgementHTML(acknowledgement);
+        } else {
+            ackHTML = createServiceAcknowledgementHTMLFallback(acknowledgement);
+        }
+        
+        const previewContent = document.getElementById('invoicePreviewContent');
+        const previewModal = document.getElementById('invoicePreviewModal');
+        
+        if (!previewContent || !previewModal) {
+            Utils.showNotification('Invoice preview modal not found');
+            return;
+        }
+
+        previewContent.innerHTML = ackHTML;
+        previewModal.style.display = 'block';
+        
+    } catch (error) {
+        console.error('Error generating acknowledgement:', error);
+        Utils.showNotification('Error generating acknowledgement. Please try again.');
+    }
 }
 
 /**
- * Create Service Acknowledgement HTML (for separate viewing)
+ * Fallback Service Acknowledgement HTML (if template fails)
  */
-function createServiceAcknowledgementHTML(acknowledgement) {
+function createServiceAcknowledgementHTMLFallback(acknowledgement) {
     return `
         <div style="max-width: 800px; margin: 0 auto; padding: 20px; font-family: Arial, sans-serif; background: white; color: #333;">
             <!-- Header Section -->
@@ -237,7 +277,7 @@ function createServiceAcknowledgementHTML(acknowledgement) {
 
             <!-- Service Receipt Content -->
             <div style="background: #f8f9fa; padding: 20px; margin-bottom: 20px;">
-                <h3 style="color: #1a237e; text-align: center; margin-bottom: 20px;">WATCH RECEIVED FOR SERVICE</h3>
+                <h3 style="color: #1a237e; text-align: center; margin-bottom: 20px;">${acknowledgement.type ? acknowledgement.type.toUpperCase() : 'ITEM'} RECEIVED FOR SERVICE</h3>
                 
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
                     <div>
@@ -255,21 +295,17 @@ function createServiceAcknowledgementHTML(acknowledgement) {
                 </div>
                 
                 <div style="background: white; padding: 15px; border-radius: 5px; border: 2px solid #1a237e;">
-                    <h4 style="color: #1a237e; text-align: center;">WATCH DETAILS</h4>
+                    <h4 style="color: #1a237e; text-align: center;">${acknowledgement.type ? acknowledgement.type.toUpperCase() : 'ITEM'} DETAILS</h4>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                         <div>
-                            <p><strong>Watch:</strong> ${Utils.sanitizeHtml(acknowledgement.watchName)}</p>
-                            <p><strong>Dial Color:</strong> ${Utils.sanitizeHtml(acknowledgement.dialColor)}</p>
-                            <p><strong>Movement:</strong> ${Utils.sanitizeHtml(acknowledgement.movementNo)}</p>
+                            <p><strong>Item:</strong> ${Utils.sanitizeHtml(acknowledgement.watchName)}</p>
+                            <p><strong>Brand:</strong> ${Utils.sanitizeHtml(acknowledgement.brand)}</p>
+                            <p><strong>Model:</strong> ${Utils.sanitizeHtml(acknowledgement.model)}</p>
                         </div>
                         <div>
-                            <p><strong>Gender:</strong> ${Utils.sanitizeHtml(acknowledgement.gender)}</p>
-                            <p><strong>Case:</strong> ${Utils.sanitizeHtml(acknowledgement.caseType)}</p>
-                            <p><strong>Strap:</strong> ${Utils.sanitizeHtml(acknowledgement.strapType)}</p>
+                            <p><strong>Type:</strong> ${Utils.sanitizeHtml(acknowledgement.type || 'Service Item')}</p>
+                            <p><strong>Issue:</strong> ${Utils.sanitizeHtml(acknowledgement.issue)}</p>
                         </div>
-                    </div>
-                    <div style="margin-top: 15px;">
-                        <p><strong>Issue:</strong> ${Utils.sanitizeHtml(acknowledgement.issue)}</p>
                     </div>
                 </div>
             </div>
@@ -277,13 +313,14 @@ function createServiceAcknowledgementHTML(acknowledgement) {
             <!-- Important Note -->
             <div style="background: #fff3cd; border: 1px solid #ffd700; border-radius: 5px; padding: 15px; margin-bottom: 20px;">
                 <h4 style="margin-top: 0; color: #856404;">IMPORTANT</h4>
-                <p style="margin-bottom: 0; color: #856404;">Please keep this receipt safe. You will need it when collecting your watch.</p>
+                <p style="margin-bottom: 0; color: #856404;">Please keep this receipt safe. You will need it when collecting your ${acknowledgement.type ? acknowledgement.type.toLowerCase() : 'item'}.</p>
             </div>
 
             <!-- Footer -->
             <div style="text-align: center; padding: 20px; background: linear-gradient(135deg, #1a237e, #283593); color: white; border-radius: 0 0 10px 10px;">
                 <p style="margin: 5px 0;">Thank you for trusting us with your timepiece!</p>
-                <p style="margin: 5px 0; font-size: 0.9em;">ZEDSON WATCHCRAFT - Expert watch servicing</p>
+                <p style="margin: 5px 0; font-size: 0.9em;">ZEDSON WATCHCRAFT - Expert servicing</p>
+                <p style="margin: 5px 0; font-size: 0.85em;">Contact: +91-9345667717 | 9500661769 | Email: zedsonwatchcraft@gmail.com</p>
             </div>
         </div>
     `;
@@ -293,7 +330,13 @@ function createServiceAcknowledgementHTML(acknowledgement) {
  * Print Invoice - Fixed to prevent logout
  */
 function printInvoice() {
-    const printContent = document.getElementById('invoicePreviewContent').innerHTML;
+    const printContent = document.getElementById('invoicePreviewContent');
+    if (!printContent) {
+        Utils.showNotification('No invoice content to print');
+        return;
+    }
+    
+    const content = printContent.innerHTML;
     
     // Create a new window for printing instead of replacing body content
     const printWindow = window.open('', '_blank', 'width=800,height=600');
@@ -318,7 +361,7 @@ function printInvoice() {
                 </style>
             </head>
             <body>
-                ${printContent}
+                ${content}
                 <div class="no-print" style="text-align: center; margin-top: 20px;">
                     <button onclick="window.print(); window.close();" style="padding: 10px 20px; background: #1a237e; color: white; border: none; border-radius: 5px; cursor: pointer;">Print</button>
                     <button onclick="window.close();" style="padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer; margin-left: 10px;">Close</button>
@@ -332,12 +375,16 @@ function printInvoice() {
         
         // Optional: Auto-print after a short delay
         setTimeout(() => {
-            printWindow.print();
+            try {
+                printWindow.print();
+            } catch (e) {
+                console.log('Auto-print failed, user can print manually');
+            }
         }, 250);
         
     } else {
         Utils.showNotification('Please allow pop-ups for printing functionality');
-        createPrintFrame(printContent);
+        createPrintFrame(content);
     }
 }
 
@@ -393,12 +440,16 @@ function createPrintFrame(content) {
             printFrame.contentWindow.print();
             
             setTimeout(() => {
-                document.body.removeChild(printFrame);
+                if (document.body.contains(printFrame)) {
+                    document.body.removeChild(printFrame);
+                }
             }, 1000);
         } catch (e) {
             console.error('Print error:', e);
             Utils.showNotification('Printing failed. Please try again.');
-            document.body.removeChild(printFrame);
+            if (document.body.contains(printFrame)) {
+                document.body.removeChild(printFrame);
+            }
         }
     }, 250);
 }
@@ -426,7 +477,7 @@ function searchInvoices(query) {
  * Filter Invoices by Type (excludes Service Acknowledgements)
  */
 function filterInvoicesByType() {
-    const filterValue = document.getElementById('invoiceTypeFilter').value;
+    const filterValue = document.getElementById('invoiceTypeFilter')?.value;
     const tbody = document.getElementById('invoiceTableBody');
     if (!tbody) return;
     

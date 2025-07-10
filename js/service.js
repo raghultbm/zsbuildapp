@@ -1,7 +1,7 @@
-// ZEDSON WATCHCRAFT - Service Management Module with Image Upload
+// ZEDSON WATCHCRAFT - Service Management Module with Type field and fixes
 
 /**
- * Service Request Management System with Image Upload and Final Service Cost
+ * Service Request Management System with Type field, Image Upload and Final Service Cost
  */
 
 // Service requests database
@@ -40,6 +40,7 @@ function addNewService(event) {
 
     // Get form data
     const customerId = parseInt(document.getElementById('serviceCustomer').value);
+    const type = document.getElementById('serviceType').value;
     const brand = document.getElementById('serviceBrand').value.trim();
     const model = document.getElementById('serviceModel').value.trim();
     const dialColor = document.getElementById('serviceDialColor').value.trim();
@@ -50,11 +51,18 @@ function addNewService(event) {
     const issue = document.getElementById('serviceIssue').value.trim();
     const cost = parseFloat(document.getElementById('serviceCost').value);
     
-    // Validate input
-    if (!customerId || !brand || !model || !dialColor || !movementNo || 
-        !gender || !caseType || !strapType || !issue || !cost) {
+    // Validate required fields
+    if (!customerId || !type || !brand || !model || !issue || !cost) {
         Utils.showNotification('Please fill in all required fields');
         return;
+    }
+
+    // Type-specific validation
+    if (type === 'Watch') {
+        if (!dialColor || !movementNo || !gender || !caseType || !strapType) {
+            Utils.showNotification('Please fill in all watch-specific fields for watch services');
+            return;
+        }
     }
 
     if (cost < 0) {
@@ -78,14 +86,15 @@ function addNewService(event) {
         timestamp: Utils.getCurrentTimestamp(),
         customerId: customerId,
         customerName: customer.name,
+        type: type,
         watchName: `${brand} ${model}`,
         brand: brand,
         model: model,
-        dialColor: dialColor,
-        movementNo: movementNo,
-        gender: gender,
-        caseType: caseType,
-        strapType: strapType,
+        dialColor: dialColor || 'N/A',
+        movementNo: movementNo || 'N/A',
+        gender: gender || 'N/A',
+        caseType: caseType || 'N/A',
+        strapType: strapType || 'N/A',
         issue: issue,
         cost: cost,
         status: 'pending',
@@ -104,7 +113,7 @@ function addNewService(event) {
 
     // Log action
     if (window.logServiceAction) {
-        logServiceAction(`Created service request for ${customer.name}'s ${brand} ${model}. Estimated cost: ${Utils.formatCurrency(cost)}`, newService);
+        logServiceAction(`Created ${type} service request for ${customer.name}'s ${brand} ${model}. Estimated cost: ${Utils.formatCurrency(cost)}`, newService);
     }
 
     // Add to services array
@@ -130,7 +139,29 @@ function addNewService(event) {
     closeModal('newServiceModal');
     event.target.reset();
     
-    Utils.showNotification(`Service request created successfully! Request ID: ${newService.id}. Acknowledgement generated.`);
+    Utils.showNotification(`${type} service request created successfully! Request ID: ${newService.id}. Acknowledgement generated.`);
+}
+
+/**
+ * Toggle watch-specific fields based on type selection
+ */
+function toggleWatchFields() {
+    const type = document.getElementById('serviceType')?.value;
+    const watchFields = document.querySelectorAll('.watch-only-field');
+    
+    watchFields.forEach(field => {
+        if (type === 'Watch') {
+            field.style.display = 'block';
+            // Make fields required for watches
+            const inputs = field.querySelectorAll('input, select');
+            inputs.forEach(input => input.required = true);
+        } else {
+            field.style.display = 'none';
+            // Remove required attribute for non-watch items
+            const inputs = field.querySelectorAll('input, select');
+            inputs.forEach(input => input.required = false);
+        }
+    });
 }
 
 /**
@@ -148,9 +179,9 @@ function updateServiceStatus(serviceId, newStatus) {
     // Show confirmation BEFORE changing status
     let confirmMessage = '';
     if (newStatus === 'in-progress') {
-        confirmMessage = `Start working on service for ${service.customerName}'s ${service.watchName}?`;
+        confirmMessage = `Start working on ${service.type.toLowerCase()} service for ${service.customerName}'s ${service.watchName}?`;
     } else if (newStatus === 'on-hold') {
-        confirmMessage = `Put service for ${service.customerName}'s ${service.watchName} on hold?`;
+        confirmMessage = `Put ${service.type.toLowerCase()} service for ${service.customerName}'s ${service.watchName} on hold?`;
     } else if (newStatus === 'completed' && oldStatus === 'in-progress') {
         showServiceCompletionModal(service);
         return;
@@ -162,7 +193,7 @@ function updateServiceStatus(serviceId, newStatus) {
     
     // Log action
     if (window.logAction) {
-        logAction(`Changed service ${serviceId} status from ${oldStatus} to ${newStatus}`);
+        logAction(`Changed ${service.type.toLowerCase()} service ${serviceId} status from ${oldStatus} to ${newStatus}`);
     }
     
     service.status = newStatus;
@@ -176,14 +207,14 @@ function updateServiceStatus(serviceId, newStatus) {
     
     renderServiceTable();
     updateDashboard();
-    Utils.showNotification(`Service status updated to: ${newStatus}`);
+    Utils.showNotification(`${service.type} service status updated to: ${newStatus}`);
 }
 
 /**
  * Show service completion modal with image upload and final service cost
  */
 function showServiceCompletionModal(service) {
-    const confirmMessage = `Complete service for ${service.customerName}'s ${service.watchName}?\n\nThis will require completion details and warranty information.`;
+    const confirmMessage = `Complete ${service.type.toLowerCase()} service for ${service.customerName}'s ${service.watchName}?\n\nThis will require completion details and warranty information.`;
     
     if (!confirm(confirmMessage)) {
         return;
@@ -196,7 +227,7 @@ function showServiceCompletionModal(service) {
     completionModal.innerHTML = `
         <div class="modal-content">
             <span class="close" onclick="closeModal('serviceCompletionModal')">&times;</span>
-            <h2>Complete Service Request</h2>
+            <h2>Complete ${service.type} Service Request</h2>
             <p><strong>Service ID:</strong> ${service.id} - ${service.watchName}</p>
             <form onsubmit="ServiceModule.completeService(event, ${service.id})">
                 <div class="form-group">
@@ -307,7 +338,7 @@ function completeService(event, serviceId) {
 function finishServiceCompletion(service, imageDataUrl, description, finalCost, warranty) {
     // Log action
     if (window.logAction) {
-        logAction(`Completed service ${service.id} for ${service.customerName}'s ${service.watchName}. Final cost: ${Utils.formatCurrency(finalCost)}`);
+        logAction(`Completed ${service.type.toLowerCase()} service ${service.id} for ${service.customerName}'s ${service.watchName}. Final cost: ${Utils.formatCurrency(finalCost)}`);
     }
     
     // Update service
@@ -333,7 +364,7 @@ function finishServiceCompletion(service, imageDataUrl, description, finalCost, 
     closeModal('serviceCompletionModal');
     document.getElementById('serviceCompletionModal').remove();
     
-    Utils.showNotification('Service completed successfully! Completion invoice generated.');
+    Utils.showNotification(`${service.type} service completed successfully! Completion invoice generated.`);
 }
 
 /**
@@ -359,7 +390,7 @@ function editService(serviceId) {
         return;
     }
 
-    // Create edit modal
+    // Create edit modal with Type field
     const editModal = document.createElement('div');
     editModal.className = 'modal';
     editModal.id = 'editServiceModal';
@@ -375,47 +406,59 @@ function editService(serviceId) {
                         <option value="">Select Customer</option>
                     </select>
                 </div>
+                <div class="form-group">
+                    <label>Type:</label>
+                    <select id="editServiceType" required onchange="toggleEditWatchFields()">
+                        <option value="Watch" ${service.type === 'Watch' ? 'selected' : ''}>Watch</option>
+                        <option value="Clock" ${service.type === 'Clock' ? 'selected' : ''}>Clock</option>
+                        <option value="Others" ${service.type === 'Others' ? 'selected' : ''}>Others</option>
+                    </select>
+                </div>
                 <div class="grid grid-2">
                     <div class="form-group">
-                        <label>Watch Brand:</label>
+                        <label>Brand:</label>
                         <input type="text" id="editServiceBrand" value="${service.brand}" required>
                     </div>
                     <div class="form-group">
-                        <label>Watch Model:</label>
+                        <label>Model:</label>
                         <input type="text" id="editServiceModel" value="${service.model}" required>
                     </div>
                 </div>
-                <div class="grid grid-2">
+                <div class="grid grid-2 watch-only-field">
                     <div class="form-group">
                         <label>Dial Colour:</label>
-                        <input type="text" id="editServiceDialColor" value="${service.dialColor}" required>
+                        <input type="text" id="editServiceDialColor" value="${service.dialColor === 'N/A' ? '' : service.dialColor}">
                     </div>
                     <div class="form-group">
                         <label>Movement No:</label>
-                        <input type="text" id="editServiceMovementNo" value="${service.movementNo}" required>
+                        <input type="text" id="editServiceMovementNo" value="${service.movementNo === 'N/A' ? '' : service.movementNo}">
                     </div>
                 </div>
-                <div class="grid grid-2">
+                <div class="grid grid-2 watch-only-field">
                     <div class="form-group">
                         <label>Gender:</label>
-                        <select id="editServiceGender" required>
+                        <select id="editServiceGender">
+                            <option value="">Select Gender</option>
                             <option value="Male" ${service.gender === 'Male' ? 'selected' : ''}>Male</option>
                             <option value="Female" ${service.gender === 'Female' ? 'selected' : ''}>Female</option>
                         </select>
                     </div>
                     <div class="form-group">
                         <label>Case Material:</label>
-                        <select id="editServiceCase" required>
+                        <select id="editServiceCase">
+                            <option value="">Select Case</option>
                             <option value="Steel" ${service.caseType === 'Steel' ? 'selected' : ''}>Steel</option>
                             <option value="Gold Tone" ${service.caseType === 'Gold Tone' ? 'selected' : ''}>Gold Tone</option>
                             <option value="Fiber" ${service.caseType === 'Fiber' ? 'selected' : ''}>Fiber</option>
                         </select>
                     </div>
                 </div>
-                <div class="grid grid-2">
+                <div class="grid grid-2 watch-only-field">
                     <div class="form-group">
                         <label>Strap Material:</label>
-                        <select id="editServiceStrap" required>
+                        <select id="editServiceStrap">
+                            <option value="">Select Strap</option>
+                            <option value="Leather" ${service.strapType === 'Leather' ? 'selected' : ''}>Leather</option>
                             <option value="Fiber" ${service.strapType === 'Fiber' ? 'selected' : ''}>Fiber</option>
                             <option value="Steel" ${service.strapType === 'Steel' ? 'selected' : ''}>Steel</option>
                             <option value="Gold Plated" ${service.strapType === 'Gold Plated' ? 'selected' : ''}>Gold Plated</option>
@@ -446,8 +489,32 @@ function editService(serviceId) {
             if (customerSelect) {
                 customerSelect.value = service.customerId;
             }
+            // Toggle watch fields based on current type
+            toggleEditWatchFields();
         }, 50);
     }
+}
+
+/**
+ * Toggle watch-specific fields in edit modal
+ */
+function toggleEditWatchFields() {
+    const type = document.getElementById('editServiceType')?.value;
+    const watchFields = document.querySelectorAll('.watch-only-field');
+    
+    watchFields.forEach(field => {
+        if (type === 'Watch') {
+            field.style.display = 'block';
+            // Make fields required for watches
+            const inputs = field.querySelectorAll('input, select');
+            inputs.forEach(input => input.required = true);
+        } else {
+            field.style.display = 'none';
+            // Remove required attribute for non-watch items
+            const inputs = field.querySelectorAll('input, select');
+            inputs.forEach(input => input.required = false);
+        }
+    });
 }
 
 /**
@@ -473,6 +540,7 @@ function updateService(event, serviceId) {
     }
 
     const customerId = parseInt(document.getElementById('editServiceCustomer').value);
+    const type = document.getElementById('editServiceType').value;
     const brand = document.getElementById('editServiceBrand').value.trim();
     const model = document.getElementById('editServiceModel').value.trim();
     const dialColor = document.getElementById('editServiceDialColor').value.trim();
@@ -483,11 +551,18 @@ function updateService(event, serviceId) {
     const issue = document.getElementById('editServiceIssue').value.trim();
     const cost = parseFloat(document.getElementById('editServiceCost').value);
 
-    // Validate input
-    if (!customerId || !brand || !model || !dialColor || !movementNo || 
-        !gender || !caseType || !strapType || !issue || cost < 0) {
+    // Validate required fields
+    if (!customerId || !type || !brand || !model || !issue || cost < 0) {
         Utils.showNotification('Please fill in all required fields correctly');
         return;
+    }
+
+    // Type-specific validation
+    if (type === 'Watch') {
+        if (!dialColor || !movementNo || !gender || !caseType || !strapType) {
+            Utils.showNotification('Please fill in all watch-specific fields for watch services');
+            return;
+        }
     }
 
     const customer = CustomerModule.getCustomerById(customerId);
@@ -499,14 +574,15 @@ function updateService(event, serviceId) {
     // Update service
     service.customerId = customerId;
     service.customerName = customer.name;
+    service.type = type;
     service.brand = brand;
     service.model = model;
     service.watchName = `${brand} ${model}`;
-    service.dialColor = dialColor;
-    service.movementNo = movementNo;
-    service.gender = gender;
-    service.caseType = caseType;
-    service.strapType = strapType;
+    service.dialColor = dialColor || 'N/A';
+    service.movementNo = movementNo || 'N/A';
+    service.gender = gender || 'N/A';
+    service.caseType = caseType || 'N/A';
+    service.strapType = strapType || 'N/A';
     service.issue = issue;
     service.cost = cost;
 
@@ -539,10 +615,10 @@ function deleteService(serviceId) {
         return;
     }
 
-    if (confirm(`Are you sure you want to delete the service request for ${service.watchName}?`)) {
+    if (confirm(`Are you sure you want to delete the ${service.type.toLowerCase()} service request for ${service.watchName}?`)) {
         // Log action
         if (window.logAction) {
-            logAction(`Deleted service request ${serviceId} for ${service.customerName}'s ${service.watchName}`);
+            logAction(`Deleted ${service.type.toLowerCase()} service request ${serviceId} for ${service.customerName}'s ${service.watchName}`);
         }
         
         // Decrease customer service count
@@ -668,7 +744,7 @@ function filterServicesByMonth(month, year) {
 }
 
 /**
- * Render service table with updated action buttons
+ * Render service table with updated action buttons and Type column
  */
 function renderServiceTable() {
     const tbody = document.getElementById('serviceTableBody');
@@ -735,6 +811,22 @@ function renderServiceTable() {
         const customer = window.CustomerModule ? CustomerModule.getCustomerById(service.customerId) : null;
         const customerMobile = customer ? customer.phone : 'N/A';
         
+        // Show specifications only for watches
+        let specificationsHtml = '';
+        if (service.type === 'Watch') {
+            specificationsHtml = `
+                <small>
+                    <strong>Dial:</strong> ${Utils.sanitizeHtml(service.dialColor)}<br>
+                    <strong>Movement:</strong> ${Utils.sanitizeHtml(service.movementNo)}<br>
+                    <strong>Gender:</strong> ${Utils.sanitizeHtml(service.gender)}<br>
+                    <strong>Case:</strong> ${Utils.sanitizeHtml(service.caseType)}<br>
+                    <strong>Strap:</strong> ${Utils.sanitizeHtml(service.strapType)}
+                </small>
+            `;
+        } else {
+            specificationsHtml = `<small style="color: #666;">N/A for ${service.type}</small>`;
+        }
+        
         row.innerHTML = `
             <td class="serial-number">${index + 1}</td>
             <td>${Utils.sanitizeHtml(service.date)}</td>
@@ -745,16 +837,11 @@ function renderServiceTable() {
             </td>
             <td>
                 <strong>${Utils.sanitizeHtml(service.watchName)}</strong><br>
+                <small><span class="status ${service.type.toLowerCase()}">${Utils.sanitizeHtml(service.type)}</span></small><br>
                 <small>${Utils.sanitizeHtml(service.brand)} ${Utils.sanitizeHtml(service.model)}</small>
             </td>
             <td>
-                <small>
-                    <strong>Dial:</strong> ${Utils.sanitizeHtml(service.dialColor)}<br>
-                    <strong>Movement:</strong> ${Utils.sanitizeHtml(service.movementNo)}<br>
-                    <strong>Gender:</strong> ${Utils.sanitizeHtml(service.gender)}<br>
-                    <strong>Case:</strong> ${Utils.sanitizeHtml(service.caseType)}<br>
-                    <strong>Strap:</strong> ${Utils.sanitizeHtml(service.strapType)}
-                </small>
+                ${specificationsHtml}
             </td>
             <td>${Utils.sanitizeHtml(service.issue)}</td>
             <td><span class="status ${service.status}">${service.status}</span></td>
@@ -774,7 +861,7 @@ function initializeServices() {
 }
 
 /**
- * Load modal template for services
+ * Load modal template for services with Type field
  */
 function loadServiceModal() {
     const modalHtml = `
@@ -784,36 +871,47 @@ function loadServiceModal() {
                 <span class="close" onclick="closeModal('newServiceModal')">&times;</span>
                 <h2>New Service Request</h2>
                 <form onsubmit="ServiceModule.addNewService(event)">
-                    <div class="form-group">
-                        <label>Customer:</label>
-                        <select id="serviceCustomer" required>
-                            <option value="">Select Customer</option>
-                        </select>
+                    <div class="grid grid-2">
+                        <div class="form-group">
+                            <label>Customer:</label>
+                            <select id="serviceCustomer" required>
+                                <option value="">Select Customer</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Type:</label>
+                            <select id="serviceType" required onchange="toggleWatchFields()">
+                                <option value="">Select Type</option>
+                                <option value="Watch">Watch</option>
+                                <option value="Clock">Clock</option>
+                                <option value="Others">Others</option>
+                            </select>
+                        </div>
                     </div>
                     <div class="grid grid-2">
                         <div class="form-group">
-                            <label>Watch Brand:</label>
+                            <label>Brand:</label>
                             <input type="text" id="serviceBrand" required placeholder="e.g., Rolex, Omega">
                         </div>
                         <div class="form-group">
-                            <label>Watch Model:</label>
+                            <label>Model:</label>
                             <input type="text" id="serviceModel" required placeholder="e.g., Submariner, Speedmaster">
                         </div>
                     </div>
-                    <div class="grid grid-2">
+                    <div class="grid grid-2 watch-only-field" style="display: none;">
                         <div class="form-group">
                             <label>Dial Colour:</label>
-                            <input type="text" id="serviceDialColor" required placeholder="e.g., Black, White, Blue">
+                            <input type="text" id="serviceDialColor" placeholder="e.g., Black, White, Blue">
                         </div>
                         <div class="form-group">
                             <label>Movement No:</label>
-                            <input type="text" id="serviceMovementNo" required placeholder="e.g., 3135, 1861">
+                            <input type="text" id="serviceMovementNo" placeholder="e.g., 3135, 1861">
                         </div>
                     </div>
-                    <div class="grid grid-2">
+                    <div class="grid grid-2 watch-only-field" style="display: none;">
                         <div class="form-group">
                             <label>Gender:</label>
-                            <select id="serviceGender" required>
+                            <select id="serviceGender">
                                 <option value="">Select Gender</option>
                                 <option value="Male">Male</option>
                                 <option value="Female">Female</option>
@@ -821,7 +919,7 @@ function loadServiceModal() {
                         </div>
                         <div class="form-group">
                             <label>Case Material:</label>
-                            <select id="serviceCase" required>
+                            <select id="serviceCase">
                                 <option value="">Select Case</option>
                                 <option value="Steel">Steel</option>
                                 <option value="Gold Tone">Gold Tone</option>
@@ -829,10 +927,10 @@ function loadServiceModal() {
                             </select>
                         </div>
                     </div>
-                    <div class="grid grid-2">
+                    <div class="grid grid-2 watch-only-field" style="display: none;">
                         <div class="form-group">
                             <label>Strap Material:</label>
-                            <select id="serviceStrap" required>
+                            <select id="serviceStrap">
                                 <option value="">Select Strap</option>
                                 <option value="Leather">Leather</option>
                                 <option value="Fiber">Fiber</option>
@@ -847,7 +945,7 @@ function loadServiceModal() {
                     </div>
                     <div class="form-group">
                         <label>Issue Description:</label>
-                        <textarea id="serviceIssue" rows="3" required placeholder="Describe the problem with the watch..."></textarea>
+                        <textarea id="serviceIssue" rows="3" required placeholder="Describe the problem with the item..."></textarea>
                     </div>
                     <button type="submit" class="btn">Create Service Request</button>
                 </form>
@@ -872,13 +970,12 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 100);
 });
 
-// Make preview function globally available
+// Make functions globally available
 window.previewCompletionImage = previewCompletionImage;
-
-// Make close function globally available
 window.closeEditServiceModal = closeEditServiceModal;
+window.toggleWatchFields = toggleWatchFields;
+window.toggleEditWatchFields = toggleEditWatchFields;
 
-// Make view functions globally available
 window.viewServiceAcknowledgement = function(serviceId) {
     if (window.ServiceModule) {
         ServiceModule.viewServiceAcknowledgement(serviceId);
