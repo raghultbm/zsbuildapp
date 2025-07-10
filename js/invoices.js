@@ -1,8 +1,7 @@
-// ZEDSON WATCHCRAFT - Invoice Management Module (Fixed and Updated)
+// ZEDSON WATCHCRAFT - Invoice Management Module (FIXED)
 
 /**
- * Complete Invoice Generation and Management System
- * Note: Service Acknowledgements are removed from invoice display
+ * Complete Invoice Generation and Management System - FIXED
  */
 
 // Invoice database
@@ -56,8 +55,59 @@ function generateSalesInvoice(saleData) {
 }
 
 /**
+ * FIXED: Generate Service Completion Invoice (triggered when service is completed)
+ */
+function generateServiceCompletionInvoice(serviceData) {
+    const customer = CustomerModule.getCustomerById(serviceData.customerId);
+    
+    if (!customer) {
+        Utils.showNotification('Customer data not found for completion invoice generation');
+        return null;
+    }
+
+    const invoiceData = {
+        id: nextInvoiceId++,
+        invoiceNo: Utils.generateBillNumber('SVC'),
+        type: 'Service Completion',
+        subType: 'Service Bill',
+        date: Utils.formatDate(new Date()),
+        timestamp: Utils.getCurrentTimestamp(),
+        customerId: serviceData.customerId,
+        customerName: customer.name,
+        customerPhone: customer.phone,
+        customerAddress: customer.address || '',
+        relatedId: serviceData.id,
+        relatedType: 'service',
+        amount: serviceData.cost,
+        status: 'generated',
+        createdBy: AuthModule.getCurrentUser().username,
+        
+        // Service specific data with all required fields
+        watchName: serviceData.watchName,
+        brand: serviceData.brand,
+        model: serviceData.model,
+        type: serviceData.type, // FIXED: Include type field
+        dialColor: serviceData.dialColor,
+        movementNo: serviceData.movementNo,
+        gender: serviceData.gender,
+        caseType: serviceData.caseType,
+        strapType: serviceData.strapType,
+        issue: serviceData.issue,
+        workPerformed: serviceData.completionDescription || 'Service completed as requested',
+        warrantyPeriod: serviceData.warrantyPeriod || 0,
+        completionDate: serviceData.actualDelivery || Utils.formatDate(new Date())
+    };
+
+    invoices.push(invoiceData);
+    renderInvoiceTable();
+    updateDashboard();
+    
+    Utils.showNotification('Service completion invoice generated successfully!');
+    return invoiceData;
+}
+
+/**
  * Generate Service Acknowledgement Invoice (triggered when service is initiated)
- * Note: This is for internal tracking only, not displayed in invoice list
  */
 function generateServiceAcknowledgement(serviceData) {
     const customer = CustomerModule.getCustomerById(serviceData.customerId);
@@ -89,7 +139,7 @@ function generateServiceAcknowledgement(serviceData) {
         watchName: serviceData.watchName,
         brand: serviceData.brand,
         model: serviceData.model,
-        type: serviceData.type,
+        type: serviceData.type, // FIXED: Include type field
         dialColor: serviceData.dialColor,
         movementNo: serviceData.movementNo,
         gender: serviceData.gender,
@@ -111,59 +161,7 @@ function generateServiceAcknowledgement(serviceData) {
 }
 
 /**
- * Generate Service Completion Invoice (triggered when service is completed)
- */
-function generateServiceCompletionInvoice(serviceData) {
-    const customer = CustomerModule.getCustomerById(serviceData.customerId);
-    
-    if (!customer) {
-        Utils.showNotification('Customer data not found for completion invoice generation');
-        return null;
-    }
-
-    const invoiceData = {
-        id: nextInvoiceId++,
-        invoiceNo: Utils.generateBillNumber('SVC'),
-        type: 'Service Completion',
-        subType: 'Service Bill',
-        date: Utils.formatDate(new Date()),
-        timestamp: Utils.getCurrentTimestamp(),
-        customerId: serviceData.customerId,
-        customerName: customer.name,
-        customerPhone: customer.phone,
-        customerAddress: customer.address || '',
-        relatedId: serviceData.id,
-        relatedType: 'service',
-        amount: serviceData.cost,
-        status: 'generated',
-        createdBy: AuthModule.getCurrentUser().username,
-        
-        // Service specific data with type
-        watchName: serviceData.watchName,
-        brand: serviceData.brand,
-        model: serviceData.model,
-        type: serviceData.type,
-        dialColor: serviceData.dialColor,
-        movementNo: serviceData.movementNo,
-        gender: serviceData.gender,
-        caseType: serviceData.caseType,
-        strapType: serviceData.strapType,
-        issue: serviceData.issue,
-        workPerformed: serviceData.completionDescription || '',
-        warrantyPeriod: serviceData.warrantyPeriod || 0,
-        completionDate: serviceData.actualDelivery || Utils.formatDate(new Date())
-    };
-
-    invoices.push(invoiceData);
-    renderInvoiceTable();
-    updateDashboard();
-    
-    Utils.showNotification('Service completion invoice generated successfully!');
-    return invoiceData;
-}
-
-/**
- * View Invoice (Read-only) - Uses new templates with proper error handling
+ * FIXED: View Invoice (Read-only) - Uses templates with proper error handling
  */
 function viewInvoice(invoiceId) {
     const invoice = invoices.find(inv => inv.id === invoiceId);
@@ -176,22 +174,25 @@ function viewInvoice(invoiceId) {
 
     try {
         if (invoice.type === 'Sales') {
-            // Use new sales invoice template
+            // Use sales invoice template
             if (window.InvoiceTemplates && window.InvoiceTemplates.createSalesInvoiceHTML) {
                 invoiceHTML = window.InvoiceTemplates.createSalesInvoiceHTML(invoice);
             } else {
+                console.error('Sales invoice template not available');
                 Utils.showNotification('Sales invoice template not available');
                 return;
             }
         } else if (invoice.type === 'Service Completion') {
-            // Use new service completion template
+            // Use service completion template
             if (window.InvoiceTemplates && window.InvoiceTemplates.createServiceCompletionHTML) {
                 invoiceHTML = window.InvoiceTemplates.createServiceCompletionHTML(invoice);
             } else {
+                console.error('Service completion template not available');
                 Utils.showNotification('Service completion template not available');
                 return;
             }
         } else {
+            console.error('Unknown invoice type:', invoice.type);
             Utils.showNotification('Unknown invoice type');
             return;
         }
@@ -200,12 +201,18 @@ function viewInvoice(invoiceId) {
         const previewModal = document.getElementById('invoicePreviewModal');
         
         if (!previewContent || !previewModal) {
+            console.error('Invoice preview modal elements not found');
             Utils.showNotification('Invoice preview modal not found');
             return;
         }
 
         previewContent.innerHTML = invoiceHTML;
         previewModal.style.display = 'block';
+        
+        // Log action
+        if (window.logAction) {
+            logAction(`Viewed ${invoice.type} invoice: ${invoice.invoiceNo}`);
+        }
         
     } catch (error) {
         console.error('Error generating invoice:', error);
@@ -214,7 +221,7 @@ function viewInvoice(invoiceId) {
 }
 
 /**
- * View Service Acknowledgement (separate from invoice list)
+ * FIXED: View Service Acknowledgement (separate from invoice list)
  */
 function viewServiceAcknowledgement(serviceId) {
     if (!window.serviceAcknowledgements) {
@@ -231,23 +238,31 @@ function viewServiceAcknowledgement(serviceId) {
     try {
         let ackHTML = '';
         
-        // Use template if available, otherwise use fallback
+        // Use template if available
         if (window.InvoiceTemplates && window.InvoiceTemplates.createServiceAcknowledgementHTML) {
             ackHTML = window.InvoiceTemplates.createServiceAcknowledgementHTML(acknowledgement);
         } else {
-            ackHTML = createServiceAcknowledgementHTMLFallback(acknowledgement);
+            console.error('Service acknowledgement template not available');
+            Utils.showNotification('Service acknowledgement template not available');
+            return;
         }
         
         const previewContent = document.getElementById('invoicePreviewContent');
         const previewModal = document.getElementById('invoicePreviewModal');
         
         if (!previewContent || !previewModal) {
+            console.error('Invoice preview modal elements not found');
             Utils.showNotification('Invoice preview modal not found');
             return;
         }
 
         previewContent.innerHTML = ackHTML;
         previewModal.style.display = 'block';
+        
+        // Log action
+        if (window.logAction) {
+            logAction(`Viewed service acknowledgement: ${acknowledgement.invoiceNo}`);
+        }
         
     } catch (error) {
         console.error('Error generating acknowledgement:', error);
@@ -256,78 +271,7 @@ function viewServiceAcknowledgement(serviceId) {
 }
 
 /**
- * Fallback Service Acknowledgement HTML (if template fails)
- */
-function createServiceAcknowledgementHTMLFallback(acknowledgement) {
-    return `
-        <div style="max-width: 800px; margin: 0 auto; padding: 20px; font-family: Arial, sans-serif; background: white; color: #333;">
-            <!-- Header Section -->
-            <div style="background: linear-gradient(135deg, #1a237e 0%, #283593 100%); color: white; padding: 20px; border-radius: 10px 10px 0 0; margin-bottom: 0;">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <div>
-                        <h1 style="margin: 0; font-size: 2.5em; font-weight: bold;">ZEDSON</h1>
-                        <p style="margin: 5px 0 0 0; font-size: 1.2em; color: #ffd700; font-weight: 600; letter-spacing: 2px;">WATCHCRAFT</p>
-                    </div>
-                    <div style="text-align: right;">
-                        <h2 style="margin: 0; font-size: 1.8em; color: #ffd700;">SERVICE RECEIPT</h2>
-                        <p style="margin: 5px 0 0 0; font-size: 1em;"># ${Utils.sanitizeHtml(acknowledgement.invoiceNo)}</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Service Receipt Content -->
-            <div style="background: #f8f9fa; padding: 20px; margin-bottom: 20px;">
-                <h3 style="color: #1a237e; text-align: center; margin-bottom: 20px;">${acknowledgement.type ? acknowledgement.type.toUpperCase() : 'ITEM'} RECEIVED FOR SERVICE</h3>
-                
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
-                    <div>
-                        <h4 style="color: #1a237e;">Customer Details</h4>
-                        <p><strong>Name:</strong> ${Utils.sanitizeHtml(acknowledgement.customerName)}</p>
-                        <p><strong>Phone:</strong> ${Utils.sanitizeHtml(acknowledgement.customerPhone)}</p>
-                        <p><strong>Address:</strong> ${Utils.sanitizeHtml(acknowledgement.customerAddress)}</p>
-                    </div>
-                    <div>
-                        <h4 style="color: #1a237e;">Receipt Details</h4>
-                        <p><strong>Receipt No:</strong> ${Utils.sanitizeHtml(acknowledgement.invoiceNo)}</p>
-                        <p><strong>Date:</strong> ${Utils.sanitizeHtml(acknowledgement.date)}</p>
-                        <p><strong>Estimated Cost:</strong> ${Utils.formatCurrency(acknowledgement.estimatedCost)}</p>
-                    </div>
-                </div>
-                
-                <div style="background: white; padding: 15px; border-radius: 5px; border: 2px solid #1a237e;">
-                    <h4 style="color: #1a237e; text-align: center;">${acknowledgement.type ? acknowledgement.type.toUpperCase() : 'ITEM'} DETAILS</h4>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                        <div>
-                            <p><strong>Item:</strong> ${Utils.sanitizeHtml(acknowledgement.watchName)}</p>
-                            <p><strong>Brand:</strong> ${Utils.sanitizeHtml(acknowledgement.brand)}</p>
-                            <p><strong>Model:</strong> ${Utils.sanitizeHtml(acknowledgement.model)}</p>
-                        </div>
-                        <div>
-                            <p><strong>Type:</strong> ${Utils.sanitizeHtml(acknowledgement.type || 'Service Item')}</p>
-                            <p><strong>Issue:</strong> ${Utils.sanitizeHtml(acknowledgement.issue)}</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Important Note -->
-            <div style="background: #fff3cd; border: 1px solid #ffd700; border-radius: 5px; padding: 15px; margin-bottom: 20px;">
-                <h4 style="margin-top: 0; color: #856404;">IMPORTANT</h4>
-                <p style="margin-bottom: 0; color: #856404;">Please keep this receipt safe. You will need it when collecting your ${acknowledgement.type ? acknowledgement.type.toLowerCase() : 'item'}.</p>
-            </div>
-
-            <!-- Footer -->
-            <div style="text-align: center; padding: 20px; background: linear-gradient(135deg, #1a237e, #283593); color: white; border-radius: 0 0 10px 10px;">
-                <p style="margin: 5px 0;">Thank you for trusting us with your timepiece!</p>
-                <p style="margin: 5px 0; font-size: 0.9em;">ZEDSON WATCHCRAFT - Expert servicing</p>
-                <p style="margin: 5px 0; font-size: 0.85em;">Contact: +91-9345667717 | 9500661769 | Email: zedsonwatchcraft@gmail.com</p>
-            </div>
-        </div>
-    `;
-}
-
-/**
- * Print Invoice - Fixed to prevent logout
+ * FIXED: Print Invoice - Prevents logout issue
  */
 function printInvoice() {
     const printContent = document.getElementById('invoicePreviewContent');
@@ -381,6 +325,11 @@ function printInvoice() {
                 console.log('Auto-print failed, user can print manually');
             }
         }, 250);
+        
+        // Log action
+        if (window.logAction) {
+            logAction('Printed invoice');
+        }
         
     } else {
         Utils.showNotification('Please allow pop-ups for printing functionality');

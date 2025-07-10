@@ -44,12 +44,11 @@ body {
     z-index: -1;
 }
 
-/* New Header Main Layout */
+/* UPDATED: Header Main Layout - Logo left, Navigation immediately following */
 .header-main {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    gap: 20px;
+    gap: 30px; /* Space between logo and navigation */
 }
 
 /* Logo Section (Left Side) */
@@ -148,17 +147,17 @@ body {
     letter-spacing: 2px;
 }
 
-/* Navigation Section (Right Side) */
+/* UPDATED: Navigation Section - Follows immediately after logo */
 .nav-section {
     flex: 1;
     display: flex;
-    justify-content: flex-end;
+    justify-content: flex-start; /* Start from left, not right */
 }
 
 /* Navigation Styles - Updated */
 .nav {
     display: flex;
-    justify-content: flex-end;
+    justify-content: flex-start; /* Start from left */
     gap: 15px;
     flex-wrap: wrap;
 }
@@ -487,13 +486,34 @@ body {
     background: linear-gradient(135deg, #283593 0%, #3949ab 50%, #5c6bc0 100%);
 }
 
-/* Filter Controls */
+/* Filter Controls - FIXED: Include Expenses checkbox layout */
 .filter-controls {
     background: #f8f9fa;
     padding: 20px;
     border-radius: 10px;
     margin-bottom: 20px;
     border: 2px solid #e9ecef;
+}
+
+.filter-controls .form-group {
+    margin-bottom: 20px;
+}
+
+/* FIXED: Include Expenses checkbox - single line layout */
+.filter-controls .form-group label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: #2c3e50;
+    cursor: pointer;
+}
+
+.filter-controls .form-group label input[type="checkbox"] {
+    width: auto;
+    margin: 0;
+    padding: 0;
 }
 
 .filter-results {

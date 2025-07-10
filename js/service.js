@@ -1,7 +1,7 @@
-// ZEDSON WATCHCRAFT - Service Management Module with Type field and fixes
+// ZEDSON WATCHCRAFT - Service Management Module (FIXED)
 
 /**
- * Service Request Management System with Type field, Image Upload and Final Service Cost
+ * Service Request Management System - Fixed Issues
  */
 
 // Service requests database
@@ -28,7 +28,7 @@ function openNewServiceModal() {
 }
 
 /**
- * Add new service request
+ * Add new service request - FIXED to always show Movement No. and Cost fields
  */
 function addNewService(event) {
     event.preventDefault();
@@ -44,22 +44,22 @@ function addNewService(event) {
     const brand = document.getElementById('serviceBrand').value.trim();
     const model = document.getElementById('serviceModel').value.trim();
     const dialColor = document.getElementById('serviceDialColor').value.trim();
-    const movementNo = document.getElementById('serviceMovementNo').value.trim();
+    const movementNo = document.getElementById('serviceMovementNo').value.trim(); // Now always visible
     const gender = document.getElementById('serviceGender').value;
     const caseType = document.getElementById('serviceCase').value;
     const strapType = document.getElementById('serviceStrap').value;
     const issue = document.getElementById('serviceIssue').value.trim();
-    const cost = parseFloat(document.getElementById('serviceCost').value);
+    const cost = parseFloat(document.getElementById('serviceCost').value); // Now always visible
     
-    // Validate required fields
-    if (!customerId || !type || !brand || !model || !issue || !cost) {
-        Utils.showNotification('Please fill in all required fields');
+    // Validate required fields - Movement No. and Cost are always required
+    if (!customerId || !type || !brand || !model || !movementNo || !issue || !cost) {
+        Utils.showNotification('Please fill in all required fields including Movement No. and Cost');
         return;
     }
 
-    // Type-specific validation
+    // Type-specific validation (only for other watch-specific fields)
     if (type === 'Watch') {
-        if (!dialColor || !movementNo || !gender || !caseType || !strapType) {
+        if (!dialColor || !gender || !caseType || !strapType) {
             Utils.showNotification('Please fill in all watch-specific fields for watch services');
             return;
         }
@@ -91,12 +91,12 @@ function addNewService(event) {
         brand: brand,
         model: model,
         dialColor: dialColor || 'N/A',
-        movementNo: movementNo || 'N/A',
+        movementNo: movementNo, // Always populated
         gender: gender || 'N/A',
         caseType: caseType || 'N/A',
         strapType: strapType || 'N/A',
         issue: issue,
-        cost: cost,
+        cost: cost, // Always populated
         status: 'pending',
         createdBy: AuthModule.getCurrentUser().username,
         estimatedDelivery: null,
@@ -143,13 +143,13 @@ function addNewService(event) {
 }
 
 /**
- * Toggle watch-specific fields based on type selection
+ * FIXED: Toggle watch-specific fields - Movement No. and Cost always shown
  */
 function toggleWatchFields() {
     const type = document.getElementById('serviceType')?.value;
-    const watchFields = document.querySelectorAll('.watch-only-field');
+    const watchOnlyFields = document.querySelectorAll('.watch-only-field');
     
-    watchFields.forEach(field => {
+    watchOnlyFields.forEach(field => {
         if (type === 'Watch') {
             field.style.display = 'block';
             // Make fields required for watches
@@ -162,6 +162,18 @@ function toggleWatchFields() {
             inputs.forEach(input => input.required = false);
         }
     });
+    
+    // Movement No. and Cost fields always visible and required
+    const movementField = document.getElementById('serviceMovementNo');
+    const costField = document.getElementById('serviceCost');
+    if (movementField) {
+        movementField.required = true;
+        movementField.closest('.form-group').style.display = 'block';
+    }
+    if (costField) {
+        costField.required = true;
+        costField.closest('.form-group').style.display = 'block';
+    }
 }
 
 /**
@@ -368,7 +380,7 @@ function finishServiceCompletion(service, imageDataUrl, description, finalCost, 
 }
 
 /**
- * Edit service
+ * Edit service - FIXED: Movement No. and Cost always shown
  */
 function editService(serviceId) {
     const currentUser = AuthModule.getCurrentUser();
@@ -390,7 +402,7 @@ function editService(serviceId) {
         return;
     }
 
-    // Create edit modal with Type field
+    // Create edit modal with Movement No. and Cost always visible
     const editModal = document.createElement('div');
     editModal.className = 'modal';
     editModal.id = 'editServiceModal';
@@ -424,17 +436,21 @@ function editService(serviceId) {
                         <input type="text" id="editServiceModel" value="${service.model}" required>
                     </div>
                 </div>
+                <div class="grid grid-2">
+                    <div class="form-group">
+                        <label>Movement No. (Required):</label>
+                        <input type="text" id="editServiceMovementNo" value="${service.movementNo === 'N/A' ? '' : service.movementNo}" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Cost (₹) (Required):</label>
+                        <input type="number" id="editServiceCost" value="${service.cost}" required min="0" step="0.01">
+                    </div>
+                </div>
                 <div class="grid grid-2 watch-only-field">
                     <div class="form-group">
                         <label>Dial Colour:</label>
                         <input type="text" id="editServiceDialColor" value="${service.dialColor === 'N/A' ? '' : service.dialColor}">
                     </div>
-                    <div class="form-group">
-                        <label>Movement No:</label>
-                        <input type="text" id="editServiceMovementNo" value="${service.movementNo === 'N/A' ? '' : service.movementNo}">
-                    </div>
-                </div>
-                <div class="grid grid-2 watch-only-field">
                     <div class="form-group">
                         <label>Gender:</label>
                         <select id="editServiceGender">
@@ -443,6 +459,8 @@ function editService(serviceId) {
                             <option value="Female" ${service.gender === 'Female' ? 'selected' : ''}>Female</option>
                         </select>
                     </div>
+                </div>
+                <div class="grid grid-2 watch-only-field">
                     <div class="form-group">
                         <label>Case Material:</label>
                         <select id="editServiceCase">
@@ -452,8 +470,6 @@ function editService(serviceId) {
                             <option value="Fiber" ${service.caseType === 'Fiber' ? 'selected' : ''}>Fiber</option>
                         </select>
                     </div>
-                </div>
-                <div class="grid grid-2 watch-only-field">
                     <div class="form-group">
                         <label>Strap Material:</label>
                         <select id="editServiceStrap">
@@ -463,10 +479,6 @@ function editService(serviceId) {
                             <option value="Steel" ${service.strapType === 'Steel' ? 'selected' : ''}>Steel</option>
                             <option value="Gold Plated" ${service.strapType === 'Gold Plated' ? 'selected' : ''}>Gold Plated</option>
                         </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Cost (₹):</label>
-                        <input type="number" id="editServiceCost" value="${service.cost}" required min="0" step="0.01">
                     </div>
                 </div>
                 <div class="form-group">
@@ -496,7 +508,7 @@ function editService(serviceId) {
 }
 
 /**
- * Toggle watch-specific fields in edit modal
+ * FIXED: Toggle watch-specific fields in edit modal - Movement No. and Cost always shown
  */
 function toggleEditWatchFields() {
     const type = document.getElementById('editServiceType')?.value;
@@ -515,6 +527,16 @@ function toggleEditWatchFields() {
             inputs.forEach(input => input.required = false);
         }
     });
+    
+    // Movement No. and Cost fields always visible and required
+    const movementField = document.getElementById('editServiceMovementNo');
+    const costField = document.getElementById('editServiceCost');
+    if (movementField) {
+        movementField.required = true;
+    }
+    if (costField) {
+        costField.required = true;
+    }
 }
 
 /**
@@ -528,7 +550,7 @@ function closeEditServiceModal() {
 }
 
 /**
- * Update service
+ * Update service - FIXED: Movement No. and Cost always required
  */
 function updateService(event, serviceId) {
     event.preventDefault();
@@ -544,22 +566,22 @@ function updateService(event, serviceId) {
     const brand = document.getElementById('editServiceBrand').value.trim();
     const model = document.getElementById('editServiceModel').value.trim();
     const dialColor = document.getElementById('editServiceDialColor').value.trim();
-    const movementNo = document.getElementById('editServiceMovementNo').value.trim();
+    const movementNo = document.getElementById('editServiceMovementNo').value.trim(); // Always required
     const gender = document.getElementById('editServiceGender').value;
     const caseType = document.getElementById('editServiceCase').value;
     const strapType = document.getElementById('editServiceStrap').value;
     const issue = document.getElementById('editServiceIssue').value.trim();
-    const cost = parseFloat(document.getElementById('editServiceCost').value);
+    const cost = parseFloat(document.getElementById('editServiceCost').value); // Always required
 
-    // Validate required fields
-    if (!customerId || !type || !brand || !model || !issue || cost < 0) {
-        Utils.showNotification('Please fill in all required fields correctly');
+    // Validate required fields - Movement No. and Cost always required
+    if (!customerId || !type || !brand || !model || !movementNo || !issue || cost < 0) {
+        Utils.showNotification('Please fill in all required fields correctly including Movement No. and Cost');
         return;
     }
 
-    // Type-specific validation
+    // Type-specific validation (only for other watch-specific fields)
     if (type === 'Watch') {
-        if (!dialColor || !movementNo || !gender || !caseType || !strapType) {
+        if (!dialColor || !gender || !caseType || !strapType) {
             Utils.showNotification('Please fill in all watch-specific fields for watch services');
             return;
         }
@@ -579,12 +601,12 @@ function updateService(event, serviceId) {
     service.model = model;
     service.watchName = `${brand} ${model}`;
     service.dialColor = dialColor || 'N/A';
-    service.movementNo = movementNo || 'N/A';
+    service.movementNo = movementNo; // Always populated
     service.gender = gender || 'N/A';
     service.caseType = caseType || 'N/A';
     service.strapType = strapType || 'N/A';
     service.issue = issue;
-    service.cost = cost;
+    service.cost = cost; // Always populated
 
     renderServiceTable();
     updateDashboard();
@@ -824,7 +846,12 @@ function renderServiceTable() {
                 </small>
             `;
         } else {
-            specificationsHtml = `<small style="color: #666;">N/A for ${service.type}</small>`;
+            specificationsHtml = `
+                <small>
+                    <strong>Movement:</strong> ${Utils.sanitizeHtml(service.movementNo)}<br>
+                    <strong>Type:</strong> ${Utils.sanitizeHtml(service.type)}
+                </small>
+            `;
         }
         
         row.innerHTML = `
@@ -861,7 +888,7 @@ function initializeServices() {
 }
 
 /**
- * Load modal template for services with Type field
+ * FIXED: Load modal template for services - Movement No. and Cost always visible
  */
 function loadServiceModal() {
     const modalHtml = `
@@ -898,17 +925,21 @@ function loadServiceModal() {
                             <input type="text" id="serviceModel" required placeholder="e.g., Submariner, Speedmaster">
                         </div>
                     </div>
+                    <div class="grid grid-2">
+                        <div class="form-group">
+                            <label>Movement No. (Required):</label>
+                            <input type="text" id="serviceMovementNo" required placeholder="e.g., 3135, 1861, Serial No.">
+                        </div>
+                        <div class="form-group">
+                            <label>Estimated Cost (₹) (Required):</label>
+                            <input type="number" id="serviceCost" required min="0" step="0.01" placeholder="Enter cost">
+                        </div>
+                    </div>
                     <div class="grid grid-2 watch-only-field" style="display: none;">
                         <div class="form-group">
                             <label>Dial Colour:</label>
                             <input type="text" id="serviceDialColor" placeholder="e.g., Black, White, Blue">
                         </div>
-                        <div class="form-group">
-                            <label>Movement No:</label>
-                            <input type="text" id="serviceMovementNo" placeholder="e.g., 3135, 1861">
-                        </div>
-                    </div>
-                    <div class="grid grid-2 watch-only-field" style="display: none;">
                         <div class="form-group">
                             <label>Gender:</label>
                             <select id="serviceGender">
@@ -917,6 +948,8 @@ function loadServiceModal() {
                                 <option value="Female">Female</option>
                             </select>
                         </div>
+                    </div>
+                    <div class="grid grid-2 watch-only-field" style="display: none;">
                         <div class="form-group">
                             <label>Case Material:</label>
                             <select id="serviceCase">
@@ -926,8 +959,6 @@ function loadServiceModal() {
                                 <option value="Fiber">Fiber</option>
                             </select>
                         </div>
-                    </div>
-                    <div class="grid grid-2 watch-only-field" style="display: none;">
                         <div class="form-group">
                             <label>Strap Material:</label>
                             <select id="serviceStrap">
@@ -937,10 +968,6 @@ function loadServiceModal() {
                                 <option value="Steel">Steel</option>
                                 <option value="Gold Plated">Gold Plated</option>
                             </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Estimated Cost (₹):</label>
-                            <input type="number" id="serviceCost" required min="0" step="0.01">
                         </div>
                     </div>
                     <div class="form-group">
